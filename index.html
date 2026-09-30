@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LinkShortener</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="header">
+      <div class="header__inner">
+        <a href="#" class="logo">🔗 LinkShortener</a>
+        <nav class="nav" id="nav">
+          <button class="nav__link is-active" data-page="shorten">
+            Shorten
+          </button>
+          <button class="nav__link" data-page="links">My Links</button>
+          <button class="nav__link" data-page="analytics">Analytics</button>
+          <button class="nav__link" data-page="settings">Settings</button>
+        </nav>
+        <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+          🌙
+        </button>
+        <button class="menu-toggle" id="menuToggle" aria-label="Menu">
+          ☰
+        </button>
+      </div>
+    </header>
+
+    <!-- Main -->
+    <main class="main">
+      <!-- Page: Shorten -->
+      <section class="page is-active" id="page-shorten">
+        <h1 class="page__title">Shorten your URL</h1>
+
+        <form class="shorten-form" id="shortenForm" novalidate>
+          <input
+            type="text"
+            id="urlInput"
+            class="input"
+            placeholder="Enter long URL (e.g. https://example.com/very/long/path)"
+            autocomplete="off"
+          />
+          <button type="submit" class="btn btn--primary" id="shortenBtn">
+            Shorten
+          </button>
+        </form>
+
+        <p class="error" id="urlError" role="alert"></p>
+
+        <!-- Result card (hidden by default) -->
+        <div class="result" id="result" hidden>
+          <p class="result__label">Your shortened URL:</p>
+          <div class="result__row">
+            <a
+              href="#"
+              id="resultLink"
+              class="result__link"
+              target="_blank"
+              rel="noopener"
+              >short.ly/xxxxx</a
+            >
+            <button class="btn btn--ghost" id="copyBtn">Copy</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Page: My Links -->
+      <section class="page" id="page-links">
+        <h1 class="page__title">My Links</h1>
+
+        <div class="links__toolbar">
+          <input
+            type="search"
+            id="searchInput"
+            class="input"
+            placeholder="Search links..."
+          />
+          <select id="filterSelect" class="input input--select">
+            <option value="all">All Links</option>
+            <option value="today">Today</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+          </select>
+        </div>
+
+        <!-- Empty state -->
+        <div class="empty" id="emptyState">
+          <p class="empty__icon">📭</p>
+          <p class="empty__text">
+            No links yet. Shorten your first URL to get started!
+          </p>
+        </div>
+
+        <!-- Table -->
+        <div class="table-wrap" id="tableWrap" hidden>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Original</th>
+                <th>Short URL</th>
+                <th>Clicks</th>
+                <th>Date</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="linksBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Page: Analytics -->
+      <section class="page" id="page-analytics">
+        <h1 class="page__title">Analytics</h1>
+        <div class="stats">
+          <div class="stat-card">
+            <p class="stat-card__label">Total Links</p>
+            <p class="stat-card__value" id="totalLinks">0</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Total Clicks</p>
+            <p class="stat-card__value" id="totalClicks">0</p>
+          </div>
+        </div>
+        <div class="chart">
+          <p class="chart__title">Clicks (last 7 days)</p>
+          <div class="chart__bars" id="chartBars"></div>
+        </div>
+      </section>
+
+      <!-- Page: Settings -->
+      <section class="page" id="page-settings">
+        <h1 class="page__title">Settings</h1>
+
+        <div class="setting-group">
+          <h2 class="setting-group__title">Appearance</h2>
+          <label class="radio"
+            ><input type="radio" name="theme" value="light" /> Light</label
+          >
+          <label class="radio"
+            ><input type="radio" name="theme" value="dark" /> Dark</label
+          >
+        </div>
+
+        <div class="setting-group">
+          <h2 class="setting-group__title">Default link expiration</h2>
+          <label class="radio"
+            ><input type="radio" name="expiry" value="never" checked />
+            Never</label
+          >
+          <label class="radio"
+            ><input type="radio" name="expiry" value="7" /> 7 days</label
+          >
+          <label class="radio"
+            ><input type="radio" name="expiry" value="30" /> 30 days</label
+          >
+        </div>
+
+        <div class="setting-group">
+          <h2 class="setting-group__title">Data</h2>
+          <div class="btn-row">
+            <button class="btn btn--ghost" id="exportBtn">Export Data</button>
+            <button class="btn btn--ghost" id="importBtn">Import Data</button>
+            <button class="btn btn--danger" id="clearBtn">
+              Clear All Data
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Toast container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="js/app.js"></script>
+  </body>
+</html>
