@@ -1040,7 +1040,8 @@ input[type="search"]::-webkit-search-cancel-button:hover {
 .chart-area {
   position: relative;
   width: 100%;
-  height: 260px;
+  aspect-ratio: 700 / 280;
+  max-height: 300px;
   color: var(--text);
 }
 #areaChart {
@@ -1048,8 +1049,14 @@ input[type="search"]::-webkit-search-cancel-button:hover {
   height: 100%;
   display: block;
   color: var(--text-muted);
+  overflow: visible;
 }
-.chart-area__empty {
+
+#areaChart .x-labels text {
+  user-select: none;
+}
+
+.chart-area__empty:not([hidden]) {
   position: absolute;
   inset: 0;
   display: flex;

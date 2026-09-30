@@ -80,16 +80,6 @@ els.menuToggle.addEventListener('click', () => {
 });
 
 
-
-
-els.navLinks.forEach(btn =>
-  btn.addEventListener('click', () => switchPage(btn.dataset.page))
-);
-
-els.menuToggle.addEventListener('click', () => {
-  els.nav.classList.toggle('is-open');
-});
-
 // =====================================================
 // Theme toggle
 // =====================================================
@@ -881,42 +871,104 @@ function renderSparkline(container, values) {
   `;
 }
 
-/** Render the main SVG area chart. */
+/** Render the main SVG area chart with axis labels inside the SVG. */
 function renderAreaChart(values, days) {
   const svg = els.areaChart;
-  const w = 700, h = 260;
+  const w = 700;
+  const h = 280;
+  const padTop = 12;
+  const padBottom = 32;   // room for X-axis labels
+  const padLeft = 26;     // room for Y-axis labels
+  const padRight = 8;
+  const innerW = w - padLeft - padRight;
+  const innerH = h - padTop - padBottom;
 
-  if (values.every(v => v === 0)) {
+  if (!values || values.length === 0 || values.every(v => v === 0)) {
     svg.innerHTML = '';
-    els.chartEmpty.hidden = false;
+    if (els.chartEmpty) els.chartEmpty.hidden = false;
+    if (els.chartAxis) els.chartAxis.innerHTML = '';
     return;
   }
-  els.chartEmpty.hidden = true;
+  if (els.chartEmpty) els.chartEmpty.hidden = true;
 
-  const { line, area } = smoothAreaPath(values, w, h - 20);
   const max = Math.max(...values, 1);
+  const stepX = values.length > 1 ? innerW / (values.length - 1) : 0;
 
-  // Y-axis gridlines (4 lines)
-  const gridLines = [0, 1, 2, 3, 4].map(i => {
-    const y = 10 + (i / 4) * (h - 20);
-    const label = Math.round(max - (i / 4) * max);
-    return `
-      <line x1="0" y1="${y}" x2="${w}" y2="${y}"
-            stroke="currentColor" stroke-opacity="0.08" stroke-width="1" />
-      <text x="0" y="${y - 4}" fill="currentColor" fill-opacity="0.4"
+  // Points in SVG coordinate space
+  const pts = values.map((v, i) => {
+    const x = padLeft + i * stepX;
+    const y = padTop + innerH - (v / max) * innerH;
+    return [x, y];
+  });
+
+  // ---- Smooth bezier line ----
+  let line = `M ${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [x0, y0] = pts[i];
+    const [x1, y1] = pts[i + 1];
+    const cx = (x0 + x1) / 2;
+    line += ` C ${cx.toFixed(1)},${y0.toFixed(1)} ${cx.toFixed(1)},${y1.toFixed(1)} ${x1.toFixed(1)},${y1.toFixed(1)}`;
+  }
+
+  // Area path: line + drop to baseline
+  const baselineY = padTop + innerH;
+  const area = `${line} L ${pts[pts.length - 1][0].toFixed(1)},${baselineY} L ${pts[0][0].toFixed(1)},${baselineY} Z`;
+
+  // ---- Y-axis gridlines + labels ----
+  const yTicks = 4;
+  let gridLines = '';
+  for (let i = 0; i <= yTicks; i++) {
+    const y = padTop + (i / yTicks) * innerH;
+    const label = Math.round(max - (i / yTicks) * max);
+    gridLines += `
+      <line x1="${padLeft}" y1="${y.toFixed(1)}" x2="${w - padRight}" y2="${y.toFixed(1)}"
+            stroke="currentColor" stroke-opacity="0.10" stroke-width="1" />
+      <text x="${padLeft - 6}" y="${(y + 3).toFixed(1)}"
+            text-anchor="end" dominant-baseline="middle"
+            fill="currentColor" fill-opacity="0.45"
             font-size="10" font-family="system-ui">${label}</text>
     `;
-  }).join('');
+  }
 
-  // Data points (small circles)
-  const stepX = w / Math.max(values.length - 1, 1);
-  const dots = values.map((v, i) => {
-    if (v === 0) return '';
-    const x = i * stepX;
-    const y = (h - 20) - (v / max) * (h - 20) - 10 + 10;
-    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3"
-                    fill="white" stroke="#7c3aed" stroke-width="2" />`;
-  }).join('');
+  // ---- Data point dots (only for non-zero, and only if not too many) ----
+  let dots = '';
+  const showDots = values.length <= 45;
+  if (showDots) {
+    dots = values.map((v, i) => {
+      if (v === 0) return '';
+      const [x, y] = pts[i];
+      return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3"
+                      fill="white" stroke="#7c3aed" stroke-width="2" />`;
+    }).join('');
+  }
+
+  // ---- X-axis labels (at most ~7 evenly spaced) ----
+  const maxLabels = 7;
+  const labelStep = Math.max(1, Math.ceil(days.length / maxLabels));
+  let xLabels = '';
+  days.forEach((d, i) => {
+    const isLast = i === days.length - 1;
+    const isFirst = i === 0;
+    if (!isFirst && !isLast && i % labelStep !== 0) return;
+
+    const x = pts[i][0];
+    const label = d.date.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+    });
+
+    // Keep the first/last labels from being clipped at edges
+    let anchor = 'middle';
+    if (isFirst) anchor = 'start';
+    if (isLast) anchor = 'end';
+
+    xLabels += `
+      <text x="${x.toFixed(1)}" y="${(h - 10).toFixed(1)}"
+            text-anchor="${anchor}" dominant-baseline="hanging"
+            fill="currentColor" fill-opacity="0.55"
+            font-size="10" font-family="system-ui">${label}</text>
+    `;
+  });
 
   svg.innerHTML = `
     <defs>
@@ -930,18 +982,8 @@ function renderAreaChart(values, days) {
     <path d="${line}" fill="none" stroke="#7c3aed" stroke-width="2.5"
           stroke-linecap="round" stroke-linejoin="round" />
     ${dots}
+    <g class="x-labels">${xLabels}</g>
   `;
-
-  // X-axis labels (max ~7 labels for readability)
-  const labelEvery = Math.ceil(days.length / 7);
-  els.chartAxis.innerHTML = days.map((d, i) => {
-    const show = i % labelEvery === 0 || i === days.length - 1;
-    const label = d.date.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-    });
-    return `<span class="chart-axis__tick">${show ? label : ''}</span>`;
-  }).join('');
 }
 
 /** Render the "Top Performing" leaderboard. */
