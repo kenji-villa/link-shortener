@@ -50,6 +50,10 @@ const els = {
   chartEmpty:    $('#chartEmpty'),
   leaderboard:   $('#leaderboard'),
   leaderboardEmpty: $('#leaderboardEmpty'),
+
+  // Toast
+  toastContainer: $('#toastContainer'),
+
 };
 
 // =====================================================
