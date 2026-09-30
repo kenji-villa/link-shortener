@@ -147,46 +147,105 @@
         </div>
       </section>
 
-      <!-- Page: Analytics -->
+      <!-- Page: Analytics (dashboard style) -->
       <section class="page" id="page-analytics">
         <h1 class="page__title">Analytics</h1>
 
-        <div class="stats">
-          <div class="stat-card">
-            <p class="stat-card__label">Total Links</p>
-            <p class="stat-card__value" id="totalLinks">0</p>
+        <!-- Row of stat cards with sparklines -->
+        <div class="stat-grid">
+          <div class="stat-tile">
+            <div class="stat-tile__main">
+              <p class="stat-tile__label">Total Links</p>
+              <p class="stat-tile__value" id="totalLinks">0</p>
+              <p class="stat-tile__delta" id="linksDelta">—</p>
+            </div>
+            <div class="stat-tile__spark" id="linksSpark"></div>
           </div>
-          <div class="stat-card">
-            <p class="stat-card__label">Total Clicks</p>
-            <p class="stat-card__value" id="totalClicks">0</p>
+
+          <div class="stat-tile">
+            <div class="stat-tile__main">
+              <p class="stat-tile__label">Total Clicks</p>
+              <p class="stat-tile__value" id="totalClicks">0</p>
+              <p class="stat-tile__delta" id="clicksDelta">—</p>
+            </div>
+            <div class="stat-tile__spark" id="clicksSpark"></div>
           </div>
-          <div class="stat-card">
-            <p class="stat-card__label">Top Link</p>
-            <p class="stat-card__value stat-card__value--sm" id="topLink">—</p>
+
+          <div class="stat-tile">
+            <div class="stat-tile__main">
+              <p class="stat-tile__label">Clicks Today</p>
+              <p class="stat-tile__value" id="clicksToday">0</p>
+              <p class="stat-tile__delta" id="todayDelta">—</p>
+            </div>
+            <div class="stat-tile__spark" id="todaySpark"></div>
+          </div>
+
+          <div class="stat-tile">
+            <div class="stat-tile__main">
+              <p class="stat-tile__label">Top Link</p>
+              <p class="stat-tile__value stat-tile__value--sm" id="topLink">
+                —
+              </p>
+              <p class="stat-tile__delta" id="topLinkMeta">—</p>
+            </div>
+            <div class="stat-tile__spark">
+              <div class="spark-glyph" id="topLinkGlyph">🏆</div>
+            </div>
           </div>
         </div>
 
-        <div class="chart">
-          <div class="chart__header">
-            <p class="chart__title">Clicks (last 7 days)</p>
-            <p class="chart__subtitle" id="chartTotal">0 clicks</p>
+        <!-- Big area chart + side panel -->
+        <div class="dash-grid">
+          <!-- Main chart card -->
+          <div class="card">
+            <div class="card__header">
+              <div>
+                <p class="card__title">Clicks Overview</p>
+                <p class="card__subtitle" id="chartSummary">
+                  0 clicks in the last 7 days
+                </p>
+              </div>
+              <div class="tabs" id="rangeTabs" role="tablist">
+                <button class="tab is-active" data-range="7" role="tab">
+                  7D
+                </button>
+                <button class="tab" data-range="30" role="tab">30D</button>
+                <button class="tab" data-range="90" role="tab">90D</button>
+                <button class="tab" data-range="all" role="tab">All</button>
+              </div>
+            </div>
+
+            <div class="chart-area">
+              <svg
+                id="areaChart"
+                viewBox="0 0 700 260"
+                preserveAspectRatio="none"
+                aria-label="Clicks over time"
+              ></svg>
+              <div class="chart-area__empty" id="chartEmpty" hidden>
+                <p class="empty__icon">📊</p>
+                <p class="empty__text">
+                  No clicks yet — open a short link to start tracking!
+                </p>
+              </div>
+            </div>
+
+            <div class="chart-axis" id="chartAxis"></div>
           </div>
 
-          <div
-            class="chart__bars"
-            id="chartBars"
-            role="img"
-            aria-label="Bar chart of clicks over the last 7 days"
-          ></div>
-
-          <div class="chart__labels" id="chartLabels"></div>
-
-          <!-- Shown when there's no data -->
-          <div class="chart__empty" id="chartEmpty">
-            <p class="empty__icon">📊</p>
-            <p class="empty__text">
-              No clicks yet. Open a short link to start tracking!
-            </p>
+          <!-- Side panel — Top links leaderboard -->
+          <div class="card">
+            <div class="card__header">
+              <div>
+                <p class="card__title">Top Performing</p>
+                <p class="card__subtitle">Your most-clicked links</p>
+              </div>
+            </div>
+            <ul class="leaderboard" id="leaderboard"></ul>
+            <div class="leaderboard__empty" id="leaderboardEmpty" hidden>
+              <p class="empty__icon">🥇</p>
+              <p class="empty__text">No clicks recorded yet.</p>
+            </div>
           </div>
         </div>
       </section>

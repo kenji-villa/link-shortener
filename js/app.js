@@ -30,15 +30,26 @@ const els = {
   linksMeta:    $('#linksMeta'),
   noResults:    $('#noResults'),
 
-  // Analytics
-  totalLinks:   $('#totalLinks'),
-  totalClicks:  $('#totalClicks'),
-  topLink:      $('#topLink'),        
-  toastContainer: $('#toastContainer'),
-  chartBars:   $('#chartBars'),
-  chartLabels: $('#chartLabels'),
-  chartEmpty:  $('#chartEmpty'),
-  chartTotal:  $('#chartTotal'),
+  // Analytics — dashboard
+  totalLinks:    $('#totalLinks'),
+  totalClicks:   $('#totalClicks'),
+  clicksToday:   $('#clicksToday'),
+  linksDelta:    $('#linksDelta'),
+  clicksDelta:   $('#clicksDelta'),
+  todayDelta:    $('#todayDelta'),
+  topLink:       $('#topLink'),
+  topLinkMeta:   $('#topLinkMeta'),
+  topLinkGlyph:  $('#topLinkGlyph'),
+  linksSpark:    $('#linksSpark'),
+  clicksSpark:   $('#clicksSpark'),
+  todaySpark:    $('#todaySpark'),
+  chartSummary:  $('#chartSummary'),
+  rangeTabs:     $('#rangeTabs'),
+  areaChart:     $('#areaChart'),
+  chartAxis:     $('#chartAxis'),
+  chartEmpty:    $('#chartEmpty'),
+  leaderboard:   $('#leaderboard'),
+  leaderboardEmpty: $('#leaderboardEmpty'),
 };
 
 // =====================================================
@@ -695,31 +706,15 @@ els.linksBody.addEventListener('click', async (e) => {
 
 
 // =====================================================
-// PHASE 8 — Analytics dashboard
+// PHASE 8 (redesign) — Analytics dashboard
 // =====================================================
 
-/**
- * Build an array of the last 7 days (oldest → newest).
- * Each entry: { date: Date, label: 'Mon', key: 'YYYY-MM-DD' }
- */
-function getLast7Days() {
-  const days = [];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+/** Current chart range in days ('7'|'30'|'90'|'all'). */
+let chartRange = 7;
 
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    days.push({
-      date: d,
-      label: d.toLocaleDateString(undefined, { weekday: 'short' }),
-      key: dateKey(d),
-    });
-  }
-  return days;
-}
+// ---------- helpers ----------
 
-/** Local-time YYYY-MM-DD key for grouping. */
+/** Local-time YYYY-MM-DD key. */
 function dateKey(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -727,93 +722,374 @@ function dateKey(d) {
   return `${y}-${m}-${day}`;
 }
 
+/** Midnight of today in local time. */
+function startOfToday() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 /**
- * Aggregate clicks per day for the last 7 days.
- * Uses `clicksLog` when available; falls back to spreading `clicks`
- * onto the link's creation day for legacy links.
- * @returns {{ counts: number[], total: number, days: Array }}
+ * Returns an array of days covering the selected range,
+ * oldest → newest. Each entry: { date, key }.
+ * @param {number|'all'} range
+ * @param {ShortLink[]} allLinks
  */
-function aggregateLast7Days(allLinks) {
-  const days = getLast7Days();
+function getRangeDays(range, allLinks) {
+  const today = startOfToday();
+
+  // If range === 'all', span from the oldest link to today
+  let count;
+  if (range === 'all') {
+    const oldest = allLinks.reduce(
+      (min, l) => Math.min(min, l.createdAt),
+      Date.now()
+    );
+    const oldestDay = new Date(oldest);
+    oldestDay.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((today - oldestDay) / 86400000) + 1;
+    count = Math.max(diffDays, 7); // at least 7 columns for looks
+  } else {
+    count = range;
+  }
+
+  const days = [];
+  for (let i = count - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    days.push({ date: d, key: dateKey(d) });
+  }
+  return days;
+}
+
+/**
+ * Bucket all click timestamps into the given days.
+ * Legacy links (no clicksLog) attribute their clicks to createdAt's day.
+ * @returns {number[]} same length as days
+ */
+function bucketClicks(days, allLinks) {
   const index = new Map(days.map((d, i) => [d.key, i]));
-  const counts = new Array(7).fill(0);
+  const counts = new Array(days.length).fill(0);
 
   for (const link of allLinks) {
     const log = Array.isArray(link.clicksLog) ? link.clicksLog : [];
-
     if (log.length > 0) {
-      // Preferred path: bucket each click timestamp into its day
       for (const ts of log) {
-        const k = dateKey(new Date(ts));
-        const i = index.get(k);
+        const i = index.get(dateKey(new Date(ts)));
         if (i !== undefined) counts[i]++;
       }
     } else if (link.clicks > 0) {
-      // Legacy fallback: attribute old clicks to the link's creation day
-      const k = dateKey(new Date(link.createdAt));
-      const i = index.get(k);
+      const i = index.get(dateKey(new Date(link.createdAt)));
       if (i !== undefined) counts[i] += link.clicks;
     }
   }
-
-  const total = counts.reduce((a, b) => a + b, 0);
-  return { counts, total, days };
+  return counts;
 }
 
-function renderAnalytics() {
-  links = getLinks();
+/**
+ * Build a smooth SVG sparkline path from a numeric series.
+ * @param {number[]} values
+ * @param {number} w
+ * @param {number} h
+ * @returns {string} SVG path d
+ */
+function sparklinePath(values, w = 80, h = 28) {
+  if (values.length < 2) return '';
+  const max = Math.max(...values, 1);
+  const step = w / (values.length - 1);
 
-  // ---- Stat cards ----
-  const totalClicks = links.reduce((sum, l) => sum + (l.clicks || 0), 0);
-  els.totalLinks.textContent = links.length;
-  els.totalClicks.textContent = totalClicks;
+  const pts = values.map((v, i) => {
+    const x = i * step;
+    const y = h - (v / max) * (h - 4) - 2;
+    return [x, y];
+  });
 
-  // Top link (by clicks)
-  const top = links.reduce(
-    (best, l) => (l.clicks > (best?.clicks ?? -1) ? l : best),
-    null
-  );
-  if (top && top.clicks > 0) {
-    els.topLink.textContent = `${top.shortCode} (${top.clicks})`;
-    els.topLink.title = top.originalUrl;
-  } else {
-    els.topLink.textContent = '—';
-    els.topLink.removeAttribute('title');
+  // Simple polyline — smooth enough at small size
+  return 'M ' + pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' L ');
+}
+
+/**
+ * Build a smooth catmull-rom-ish bezier path from a numeric series.
+ * @param {number[]} values
+ * @param {number} w
+ * @param {number} h
+ * @returns {{ line: string, area: string }}
+ */
+function smoothAreaPath(values, w, h) {
+  if (values.length === 0) return { line: '', area: '' };
+
+  const max = Math.max(...values, 1);
+  const stepX = w / Math.max(values.length - 1, 1);
+
+  const pts = values.map((v, i) => [
+    i * stepX,
+    h - (v / max) * (h - 20) - 10,
+  ]);
+
+  // Bezier smoothing
+  let line = `M ${pts[0][0]},${pts[0][1]}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [x0, y0] = pts[i];
+    const [x1, y1] = pts[i + 1];
+    const cx = (x0 + x1) / 2;
+    line += ` C ${cx},${y0} ${cx},${y1} ${x1},${y1}`;
   }
 
-  // ---- Chart ----
-  const { counts, total, days } = aggregateLast7Days(links);
+  const area = `${line} L ${pts[pts.length - 1][0]},${h} L ${pts[0][0]},${h} Z`;
+  return { line, area };
+}
 
-  els.chartTotal.textContent = `${total} click${total === 1 ? '' : 's'}`;
+/**
+ * Format a number with thousands separators.
+ */
+function fmt(n) {
+  return n.toLocaleString();
+}
 
-  // No data → show empty message, hide bars + labels
-  if (total === 0) {
-    els.chartBars.innerHTML = '';
-    els.chartLabels.innerHTML = '';
+/**
+ * Compute % change vs the previous equivalent range.
+ * @returns {string} like "+12.5% vs prev" or '—'
+ */
+function computeDelta(current, previous) {
+  if (previous === 0 && current === 0) return '—';
+  if (previous === 0) return `+${current} new`;
+  const pct = ((current - previous) / previous) * 100;
+  const sign = pct >= 0 ? '+' : '';
+  return `${sign}${pct.toFixed(1)}% vs prev`;
+}
+
+// ---------- renderers ----------
+
+/** Render one of the mini sparklines inside a stat tile. */
+function renderSparkline(container, values) {
+  if (!container) return;
+  if (values.length < 2 || values.every(v => v === 0)) {
+    container.innerHTML = `<span class="spark-empty">—</span>`;
+    return;
+  }
+  const w = 80, h = 28;
+  const d = sparklinePath(values, w, h);
+  container.innerHTML = `
+    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+      <path d="${d}" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  `;
+}
+
+/** Render the main SVG area chart. */
+function renderAreaChart(values, days) {
+  const svg = els.areaChart;
+  const w = 700, h = 260;
+
+  if (values.every(v => v === 0)) {
+    svg.innerHTML = '';
     els.chartEmpty.hidden = false;
     return;
   }
   els.chartEmpty.hidden = true;
 
-  // Scale bars relative to the max, with a 4px floor for zero values
-  const max = Math.max(...counts, 1);
+  const { line, area } = smoothAreaPath(values, w, h - 20);
+  const max = Math.max(...values, 1);
 
-  els.chartBars.innerHTML = days.map((d, i) => {
-    const value = counts[i];
-    const pct = value === 0 ? 0 : Math.max((value / max) * 100, 8);
+  // Y-axis gridlines (4 lines)
+  const gridLines = [0, 1, 2, 3, 4].map(i => {
+    const y = 10 + (i / 4) * (h - 20);
+    const label = Math.round(max - (i / 4) * max);
     return `
-      <div class="bar-wrap" title="${d.label}: ${value} click${value === 1 ? '' : 's'}">
-        <span class="bar-value">${value > 0 ? value : ''}</span>
-        <div class="bar" style="height: ${pct}%"></div>
-      </div>
+      <line x1="0" y1="${y}" x2="${w}" y2="${y}"
+            stroke="currentColor" stroke-opacity="0.08" stroke-width="1" />
+      <text x="0" y="${y - 4}" fill="currentColor" fill-opacity="0.4"
+            font-size="10" font-family="system-ui">${label}</text>
     `;
   }).join('');
 
-  // Label row aligned under the bars
-  els.chartLabels.innerHTML = days.map(d =>
-    `<span class="chart__label">${d.label}</span>`
-  ).join('');
+  // Data points (small circles)
+  const stepX = w / Math.max(values.length - 1, 1);
+  const dots = values.map((v, i) => {
+    if (v === 0) return '';
+    const x = i * stepX;
+    const y = (h - 20) - (v / max) * (h - 20) - 10 + 10;
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3"
+                    fill="white" stroke="#7c3aed" stroke-width="2" />`;
+  }).join('');
+
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stop-color="#8b5cf6" stop-opacity="0.35" />
+        <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.02" />
+      </linearGradient>
+    </defs>
+    <g class="grid">${gridLines}</g>
+    <path d="${area}" fill="url(#areaFill)" />
+    <path d="${line}" fill="none" stroke="#7c3aed" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round" />
+    ${dots}
+  `;
+
+  // X-axis labels (max ~7 labels for readability)
+  const labelEvery = Math.ceil(days.length / 7);
+  els.chartAxis.innerHTML = days.map((d, i) => {
+    const show = i % labelEvery === 0 || i === days.length - 1;
+    const label = d.date.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+    });
+    return `<span class="chart-axis__tick">${show ? label : ''}</span>`;
+  }).join('');
 }
+
+/** Render the "Top Performing" leaderboard. */
+function renderLeaderboard(allLinks) {
+  const sorted = [...allLinks]
+    .filter(l => (l.clicks || 0) > 0)
+    .sort((a, b) => b.clicks - a.clicks)
+    .slice(0, 5);
+
+  if (sorted.length === 0) {
+    els.leaderboard.innerHTML = '';
+    els.leaderboardEmpty.hidden = false;
+    return;
+  }
+  els.leaderboardEmpty.hidden = true;
+
+  const maxClicks = sorted[0].clicks;
+
+  els.leaderboard.innerHTML = sorted.map((link, i) => {
+    const pct = (link.clicks / maxClicks) * 100;
+    return `
+      <li class="leaderboard__item">
+        <div class="leaderboard__head">
+          <span class="leaderboard__rank">#${i + 1}</span>
+          <span class="leaderboard__code">${link.shortCode}</span>
+          <span class="leaderboard__clicks">${link.clicks}</span>
+        </div>
+        <div class="leaderboard__bar">
+          <div class="leaderboard__bar-fill" style="width: ${pct}%"></div>
+        </div>
+        <p class="leaderboard__url" title="${link.originalUrl}">${truncateUrl(link.originalUrl, 32)}</p>
+      </li>
+    `;
+  }).join('');
+}
+
+// ---------- main entry ----------
+
+function renderAnalytics() {
+  links = getLinks();
+
+  const allLinks = links;
+  const totalClicks = allLinks.reduce((s, l) => s + (l.clicks || 0), 0);
+  const todayStart = startOfToday().getTime();
+  const yesterdayStart = todayStart - 86400000;
+
+  // ---- Compute clicks today + yesterday ----
+  let clicksToday = 0;
+  let clicksYesterday = 0;
+  for (const link of allLinks) {
+    const log = Array.isArray(link.clicksLog) ? link.clicksLog : [];
+    for (const ts of log) {
+      if (ts >= todayStart) clicksToday++;
+      else if (ts >= yesterdayStart) clicksYesterday++;
+    }
+  }
+
+  // ---- New links today vs yesterday ----
+  const linksToday = allLinks.filter(l => l.createdAt >= todayStart).length;
+  const linksYesterday = allLinks.filter(
+    l => l.createdAt >= yesterdayStart && l.createdAt < todayStart
+  ).length;
+
+  // ---- Top link ----
+  const top = allLinks.reduce(
+    (best, l) => ((l.clicks || 0) > (best?.clicks || -1) ? l : best),
+    null
+  );
+
+  // ---- Update stat tiles ----
+  els.totalLinks.textContent = fmt(allLinks.length);
+  els.linksDelta.textContent = linksToday > 0
+    ? `+${linksToday} today`
+    : (allLinks.length ? '—' : 'Getting started');
+
+  els.totalClicks.textContent = fmt(totalClicks);
+  els.clicksDelta.textContent = computeDelta(
+    // clicks in last 7 days vs 7 days before that
+    countClicksInWindow(allLinks, 7),
+    countClicksInWindow(allLinks, 14) - countClicksInWindow(allLinks, 7)
+  );
+
+  els.clicksToday.textContent = fmt(clicksToday);
+  els.todayDelta.textContent = computeDelta(clicksToday, clicksYesterday);
+
+  if (top && top.clicks > 0) {
+    els.topLink.textContent = top.shortCode;
+    els.topLink.title = top.originalUrl;
+    els.topLinkMeta.textContent = `${top.clicks} clicks`;
+  } else {
+    els.topLink.textContent = '—';
+    els.topLink.removeAttribute('title');
+    els.topLinkMeta.textContent = 'No clicks yet';
+  }
+
+  // ---- Sparklines ----
+  const sparkDays = getRangeDays(7, allLinks);
+  const sparkCounts = bucketClicks(sparkDays, allLinks);
+  renderSparkline(els.clicksSpark, sparkCounts);
+  renderSparkline(els.todaySpark, sparkCounts.slice(-3));
+  renderSparkline(els.linksSpark, getRecentLinksSpark(allLinks, 7));
+
+  // ---- Main chart ----
+  const range = chartRange;
+  const days = getRangeDays(range, allLinks);
+  const counts = bucketClicks(days, allLinks);
+  const rangeTotal = counts.reduce((a, b) => a + b, 0);
+
+  els.chartSummary.textContent =
+    `${fmt(rangeTotal)} click${rangeTotal === 1 ? '' : 's'} ` +
+    (range === 'all'
+      ? `all-time`
+      : `in the last ${range} day${range === 1 ? '' : 's'}`);
+
+  renderAreaChart(counts, days);
+
+  // ---- Leaderboard ----
+  renderLeaderboard(allLinks);
+}
+
+/** Count clicks in the last N days. */
+function countClicksInWindow(allLinks, days) {
+  const cutoff = Date.now() - days * 86400000;
+  let n = 0;
+  for (const link of allLinks) {
+    const log = Array.isArray(link.clicksLog) ? link.clicksLog : [];
+    for (const ts of log) if (ts >= cutoff) n++;
+  }
+  return n;
+}
+
+/** Sparkline data for "new links per day". */
+function getRecentLinksSpark(allLinks, days) {
+  const dayList = getRangeDays(days, allLinks);
+  const index = new Map(dayList.map((d, i) => [d.key, i]));
+  const counts = new Array(dayList.length).fill(0);
+  for (const link of allLinks) {
+    const i = index.get(dateKey(new Date(link.createdAt)));
+    if (i !== undefined) counts[i]++;
+  }
+  return counts;
+}
+
+// ---------- Range tab listeners (register once) ----------
+els.rangeTabs.addEventListener('click', (e) => {
+  const btn = e.target.closest('.tab');
+  if (!btn) return;
+  $$('.tab', els.rangeTabs).forEach(t => t.classList.toggle('is-active', t === btn));
+  const r = btn.dataset.range;
+  chartRange = r === 'all' ? 'all' : parseInt(r, 10);
+  renderAnalytics();
+});
 
 // =====================================================
 // Init
