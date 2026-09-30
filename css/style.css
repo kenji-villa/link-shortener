@@ -842,3 +842,45 @@ body {
     display: none;
   }
 }
+
+/* =====================================================
+   PHASE 7 — Toolbar & meta
+   ===================================================== */
+.links__toolbar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.links__toolbar .input[type="search"] {
+  flex: 1;
+}
+
+.links__meta {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+/* Nicer search input look on webkit */
+input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  height: 1em;
+  width: 1em;
+  background: var(--text-muted);
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/></svg>")
+    center / contain no-repeat;
+  cursor: pointer;
+  opacity: 0.6;
+}
+input[type="search"]::-webkit-search-cancel-button:hover {
+  opacity: 1;
+}
+
+@media (max-width: 640px) {
+  .links__toolbar {
+    flex-direction: column;
+  }
+  .input--select {
+    width: 100%;
+  }
+}

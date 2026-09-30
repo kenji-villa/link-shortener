@@ -91,6 +91,7 @@
       </section>
 
       <!-- Page: My Links -->
+      <!-- Page: My Links -->
       <section class="page" id="page-links">
         <h1 class="page__title">My Links</h1>
 
@@ -99,7 +100,9 @@
             type="search"
             id="searchInput"
             class="input"
-            placeholder="Search links..."
+            placeholder="Search by URL or code…"
+            autocomplete="off"
+            spellcheck="false"
           />
           <select id="filterSelect" class="input input--select">
             <option value="all">All Links</option>
@@ -109,11 +112,21 @@
           </select>
         </div>
 
-        <!-- Empty state -->
+        <p class="links__meta" id="linksMeta" hidden></p>
+
+        <!-- Empty state: no links at all -->
         <div class="empty" id="emptyState">
           <p class="empty__icon">📭</p>
           <p class="empty__text">
             No links yet. Shorten your first URL to get started!
+          </p>
+        </div>
+
+        <!-- Empty state: filters matched nothing -->
+        <div class="empty" id="noResults" hidden>
+          <p class="empty__icon">🔍</p>
+          <p class="empty__text">
+            No links match your search. Try a different term or filter.
           </p>
         </div>
 

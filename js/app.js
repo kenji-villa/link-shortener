@@ -25,6 +25,10 @@ const els = {
   emptyState:   $('#emptyState'),
   tableWrap:    $('#tableWrap'),
   linksBody:    $('#linksBody'),
+  searchInput:  $('#searchInput'),
+  filterSelect: $('#filterSelect'),
+  linksMeta:    $('#linksMeta'),
+  noResults:    $('#noResults'),
 
   // Analytics
   totalLinks:   $('#totalLinks'),
@@ -128,6 +132,19 @@ els.linksBody.addEventListener('click', async (e) => {
   }
 });
 
+
+// =====================================================
+// PHASE 7 — Listeners for search & filter
+// =====================================================
+els.searchInput.addEventListener('input', (e) => {
+  filterState.query = e.target.value;
+  renderLinks();
+});
+
+els.filterSelect.addEventListener('change', (e) => {
+  filterState.range = e.target.value;
+  renderLinks();
+});
 
 
   if (pageName === 'analytics') renderAnalytics();
@@ -514,19 +531,109 @@ function truncateUrl(url, max = 40) {
   return clean.length > max ? clean.slice(0, max - 1) + '…' : clean;
 }
 
-function renderLinks() {
-  links = getLinks();
+// =====================================================
+// PHASE 7 — Search & filtering
+// =====================================================
 
-  if (links.length === 0) {
+/** Current filter state (source of truth for renderLinks). */
+const filterState = {
+  query: '',
+  range: 'all', // 'all' | 'today' | 'week' | 'month'
+};
+
+/**
+ * Returns the start-of-range timestamp for the current filter.
+ * @returns {number|null} null means "no time filter"
+ */
+function getRangeStart() {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+
+  switch (filterState.range) {
+    case 'today':
+      return startOfToday;
+    case 'week': {
+      // Last 7 days (rolling) — friendlier than "start of calendar week"
+      const d = new Date(startOfToday);
+      d.setDate(d.getDate() - 6);
+      return d.getTime();
+    }
+    case 'month': {
+      const d = new Date(startOfToday);
+      d.setDate(d.getDate() - 29);
+      return d.getTime();
+    }
+    default:
+      return null;
+  }
+}
+
+/**
+ * Apply search + filter to a list of links.
+ * @param {ShortLink[]} all
+ * @returns {ShortLink[]}
+ */
+function applyFilters(all) {
+  const q = filterState.query.trim().toLowerCase();
+  const rangeStart = getRangeStart();
+
+  return all.filter(link => {
+    // Time range
+    if (rangeStart !== null && link.createdAt < rangeStart) return false;
+
+    // Text search across original URL and short code
+    if (q) {
+      const haystack = `${link.originalUrl} ${link.shortCode}`.toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+
+    return true;
+  });
+}
+
+function renderLinks() {
+  const all = getLinks();
+  links = all; // keep global in sync
+
+  const filtered = applyFilters(all);
+  const hasAny = all.length > 0;
+  const hasMatches = filtered.length > 0;
+  const isFiltering = filterState.query.trim() !== '' || filterState.range !== 'all';
+
+  // ---- Choose which UI state to show ----
+  if (!hasAny) {
+    // No links at all
     els.emptyState.hidden = false;
+    els.noResults.hidden = true;
     els.tableWrap.hidden = true;
+    els.linksMeta.hidden = true;
     return;
   }
 
+  if (!hasMatches) {
+    // Links exist but none match
+    els.emptyState.hidden = true;
+    els.noResults.hidden = false;
+    els.tableWrap.hidden = true;
+    els.linksMeta.hidden = true;
+    return;
+  }
+
+  // Has matches → show table
   els.emptyState.hidden = true;
+  els.noResults.hidden = true;
   els.tableWrap.hidden = false;
 
-  els.linksBody.innerHTML = links.map(link => {
+  // Meta line: show only while filtering
+  if (isFiltering) {
+    els.linksMeta.hidden = false;
+    els.linksMeta.textContent = `Showing ${filtered.length} of ${all.length} link${all.length === 1 ? '' : 's'}`;
+  } else {
+    els.linksMeta.hidden = true;
+  }
+
+  // Render rows (unchanged markup from Phase 6)
+  els.linksBody.innerHTML = filtered.map(link => {
     const shortUrl = `${SHORT_DOMAIN}/${link.shortCode}`;
     const clickBadgeClass = link.clicks > 0 ? 'badge badge--active' : 'badge';
 
@@ -540,7 +647,6 @@ function renderLinks() {
              class="short-link"
              data-short="${shortUrl}"
              data-id="${link.id}"
-             target="_blank"
              rel="noopener">
             ${link.shortCode}
           </a>
