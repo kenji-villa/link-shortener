@@ -150,6 +150,7 @@
       <!-- Page: Analytics -->
       <section class="page" id="page-analytics">
         <h1 class="page__title">Analytics</h1>
+
         <div class="stats">
           <div class="stat-card">
             <p class="stat-card__label">Total Links</p>
@@ -159,10 +160,34 @@
             <p class="stat-card__label">Total Clicks</p>
             <p class="stat-card__value" id="totalClicks">0</p>
           </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Top Link</p>
+            <p class="stat-card__value stat-card__value--sm" id="topLink">—</p>
+          </div>
         </div>
+
         <div class="chart">
-          <p class="chart__title">Clicks (last 7 days)</p>
-          <div class="chart__bars" id="chartBars"></div>
+          <div class="chart__header">
+            <p class="chart__title">Clicks (last 7 days)</p>
+            <p class="chart__subtitle" id="chartTotal">0 clicks</p>
+          </div>
+
+          <div
+            class="chart__bars"
+            id="chartBars"
+            role="img"
+            aria-label="Bar chart of clicks over the last 7 days"
+          ></div>
+
+          <div class="chart__labels" id="chartLabels"></div>
+
+          <!-- Shown when there's no data -->
+          <div class="chart__empty" id="chartEmpty">
+            <p class="empty__icon">📊</p>
+            <p class="empty__text">
+              No clicks yet. Open a short link to start tracking!
+            </p>
+          </div>
         </div>
       </section>
 

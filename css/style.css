@@ -884,3 +884,111 @@ input[type="search"]::-webkit-search-cancel-button:hover {
     width: 100%;
   }
 }
+
+/* =====================================================
+   PHASE 8 — Analytics chart
+   ===================================================== */
+
+.chart__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.chart__subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* Bars container */
+.chart__bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.5rem;
+  height: 180px;
+  padding: 0 0.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.bar-wrap {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.35rem;
+  position: relative;
+  cursor: default;
+}
+.bar-value {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.bar-wrap:hover .bar-value {
+  opacity: 1;
+}
+
+.bar {
+  width: 100%;
+  max-width: 46px;
+  border-radius: 8px 8px 0 0;
+  background: linear-gradient(180deg, #8b5cf6 0%, #6d28d9 100%);
+  transition:
+    height 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.15s;
+  box-shadow: 0 6px 18px -8px rgba(109, 40, 217, 0.6);
+  min-height: 4px;
+}
+.bar-wrap:hover .bar {
+  filter: brightness(1.1);
+}
+[data-theme="dark"] .bar {
+  background: linear-gradient(180deg, #a78bfa 0%, #7c3aed 100%);
+}
+
+/* Labels row */
+.chart__labels {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.5rem;
+  padding: 0.6rem 0.25rem 0;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+.chart__label {
+  text-align: center;
+}
+
+/* Empty state inside the chart card */
+.chart__empty {
+  text-align: center;
+  padding: 2rem 1rem 1rem;
+  color: var(--text-muted);
+}
+.chart__empty .empty__icon {
+  font-size: 2rem;
+  margin-bottom: 0.4rem;
+}
+
+/* Top Link card value — smaller and monospace for the code */
+.stat-card__value--sm {
+  font-size: 1.1rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  word-break: break-all;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .chart__bars {
+    height: 140px;
+  }
+  .chart__labels {
+    font-size: 0.68rem;
+  }
+}

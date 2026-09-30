@@ -33,8 +33,12 @@ const els = {
   // Analytics
   totalLinks:   $('#totalLinks'),
   totalClicks:  $('#totalClicks'),
-
+  topLink:      $('#topLink'),        
   toastContainer: $('#toastContainer'),
+  chartBars:   $('#chartBars'),
+  chartLabels: $('#chartLabels'),
+  chartEmpty:  $('#chartEmpty'),
+  chartTotal:  $('#chartTotal'),
 };
 
 // =====================================================
@@ -46,109 +50,22 @@ function switchPage(pageName) {
   els.nav.classList.remove('is-open');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
-  // Refresh page-specific data
   if (pageName === 'links') renderLinks();
-  // =====================================================
-// PHASE 5 — Delegated table actions (hardened)
-// - Registered ONCE at top level
-// - Stops propagation so no double-handling
-// - Guard flag prevents re-entry from rapid clicks
-// =====================================================
-let _handlingClick = false;
-
-els.linksBody.addEventListener('click', async (e) => {
-  if (_handlingClick) return;
-
-  const actionBtn = e.target.closest('[data-action]');
-  const shortLink = e.target.closest('.short-link');
-
-  // --- Action buttons (Copy / Open / Delete) ---
-  if (actionBtn) {
-    e.preventDefault();
-    e.stopPropagation();           // ← prevent any other handler from firing
-    e.stopImmediatePropagation();  // ← belt and suspenders
-
-    _handlingClick = true;
-    try {
-      const { action, id } = actionBtn.dataset;
-      const link = links.find(l => l.id === id);
-      if (!link) return;
-
-      if (action === 'copy') {
-        const shortUrl = `${SHORT_DOMAIN}/${link.shortCode}`;
-        const ok = await copyToClipboard(shortUrl);
-        showToast(
-          ok ? 'Copied to clipboard!' : 'Could not copy.',
-          ok ? 'success' : 'error',
-          1800
-        );
-        return;
-      }
-
-      if (action === 'open') {
-        incrementClicks(link.id);
-        window.open(link.originalUrl, '_blank', 'noopener');
-        renderLinks();
-        showToast('Opening link…', 'info', 1500);
-        if ($('#page-analytics').classList.contains('is-active')) renderAnalytics();
-        return;
-      }
-
-      if (action === 'delete') {
-        if (confirm(`Delete short link "${link.shortCode}"? This cannot be undone.`)) {
-          deleteLink(link.id);
-          links = getLinks();
-          renderLinks();
-          renderAnalytics();
-          showToast('Link deleted.', 'success', 1800);
-        }
-        return;
-      }
-    } finally {
-      // Release the guard on the next tick
-      setTimeout(() => { _handlingClick = false; }, 0);
-    }
-    return;
-  }
-
-  // --- Short-link anchor click (the pill in the table) ---
-  if (shortLink) {
-    e.preventDefault();
-    e.stopPropagation();
-
-    _handlingClick = true;
-    try {
-      const id = shortLink.dataset.id;
-      const link = links.find(l => l.id === id);
-      if (link) {
-        incrementClicks(link.id);
-        window.open(link.originalUrl, '_blank', 'noopener');
-        renderLinks();
-        if ($('#page-analytics').classList.contains('is-active')) renderAnalytics();
-      }
-    } finally {
-      setTimeout(() => { _handlingClick = false; }, 0);
-    }
-  }
-});
-
-
-// =====================================================
-// PHASE 7 — Listeners for search & filter
-// =====================================================
-els.searchInput.addEventListener('input', (e) => {
-  filterState.query = e.target.value;
-  renderLinks();
-});
-
-els.filterSelect.addEventListener('change', (e) => {
-  filterState.range = e.target.value;
-  renderLinks();
-});
-
-
   if (pageName === 'analytics') renderAnalytics();
 }
+
+// Nav click handlers
+els.navLinks.forEach(btn =>
+  btn.addEventListener('click', () => switchPage(btn.dataset.page))
+);
+
+// Mobile menu toggle
+els.menuToggle.addEventListener('click', () => {
+  els.nav.classList.toggle('is-open');
+});
+
+
+
 
 els.navLinks.forEach(btn =>
   btn.addEventListener('click', () => switchPage(btn.dataset.page))
@@ -260,7 +177,20 @@ function incrementClicks(id) {
   const stored = loadLinks();
   const target = stored.find(l => l.id === id);
   if (!target) return;
+
   target.clicks = (target.clicks || 0) + 1;
+
+  // Phase 8: track click timestamps for the chart
+  if (!Array.isArray(target.clicksLog)) target.clicksLog = [];
+  target.clicksLog.push(Date.now());
+
+  // Cap log length so a heavily-clicked link doesn't bloat storage.
+  // 1000 entries ≈ 13KB per link — plenty for a local app.
+  const MAX_LOG = 1000;
+  if (target.clicksLog.length > MAX_LOG) {
+    target.clicksLog = target.clicksLog.slice(-MAX_LOG);
+  }
+
   saveLinks(stored);
   links = stored;
 }
@@ -531,15 +461,27 @@ function truncateUrl(url, max = 40) {
   return clean.length > max ? clean.slice(0, max - 1) + '…' : clean;
 }
 
-// =====================================================
-// PHASE 7 — Search & filtering
-// =====================================================
+
 
 /** Current filter state (source of truth for renderLinks). */
 const filterState = {
   query: '',
   range: 'all', // 'all' | 'today' | 'week' | 'month'
 };
+
+// =====================================================
+// PHASE 7 — Listeners for search & filter
+// =====================================================
+els.searchInput.addEventListener('input', (e) => {
+  filterState.query = e.target.value;
+  renderLinks();
+});
+
+els.filterSelect.addEventListener('change', (e) => {
+  filterState.range = e.target.value;
+  renderLinks();
+});
+
 
 /**
  * Returns the start-of-range timestamp for the current filter.
@@ -665,13 +607,212 @@ function renderLinks() {
   }).join('');
 }
 
+
 // =====================================================
-// PHASE 4 (cont.): Analytics (basic counts for now)
+// PHASE 5 — Delegated table actions (hardened)
+// - Registered ONCE at top level
+// - Stops propagation so no double-handling
+// - Guard flag prevents re-entry from rapid clicks
 // =====================================================
+let _handlingClick = false;
+
+els.linksBody.addEventListener('click', async (e) => {
+  if (_handlingClick) return;
+
+  const actionBtn = e.target.closest('[data-action]');
+  const shortLink = e.target.closest('.short-link');
+
+  // --- Action buttons (Copy / Open / Delete) ---
+  if (actionBtn) {
+    e.preventDefault();
+    e.stopPropagation();           // ← prevent any other handler from firing
+    e.stopImmediatePropagation();  // ← belt and suspenders
+
+    _handlingClick = true;
+    try {
+      const { action, id } = actionBtn.dataset;
+      const link = links.find(l => l.id === id);
+      if (!link) return;
+
+      if (action === 'copy') {
+        const shortUrl = `${SHORT_DOMAIN}/${link.shortCode}`;
+        const ok = await copyToClipboard(shortUrl);
+        showToast(
+          ok ? 'Copied to clipboard!' : 'Could not copy.',
+          ok ? 'success' : 'error',
+          1800
+        );
+        return;
+      }
+
+      if (action === 'open') {
+        incrementClicks(link.id);
+        window.open(link.originalUrl, '_blank', 'noopener');
+        renderLinks();
+        showToast('Opening link…', 'info', 1500);
+        if ($('#page-analytics').classList.contains('is-active')) renderAnalytics();
+        return;
+      }
+
+      if (action === 'delete') {
+        if (confirm(`Delete short link "${link.shortCode}"? This cannot be undone.`)) {
+          deleteLink(link.id);
+          links = getLinks();
+          renderLinks();
+          renderAnalytics();
+          showToast('Link deleted.', 'success', 1800);
+        }
+        return;
+      }
+    } finally {
+      // Release the guard on the next tick
+      setTimeout(() => { _handlingClick = false; }, 0);
+    }
+    return;
+  }
+
+  // --- Short-link anchor click (the pill in the table) ---
+  if (shortLink) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    _handlingClick = true;
+    try {
+      const id = shortLink.dataset.id;
+      const link = links.find(l => l.id === id);
+      if (link) {
+        incrementClicks(link.id);
+        window.open(link.originalUrl, '_blank', 'noopener');
+        renderLinks();
+        if ($('#page-analytics').classList.contains('is-active')) renderAnalytics();
+      }
+    } finally {
+      setTimeout(() => { _handlingClick = false; }, 0);
+    }
+  }
+});
+
+
+
+// =====================================================
+// PHASE 8 — Analytics dashboard
+// =====================================================
+
+/**
+ * Build an array of the last 7 days (oldest → newest).
+ * Each entry: { date: Date, label: 'Mon', key: 'YYYY-MM-DD' }
+ */
+function getLast7Days() {
+  const days = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    days.push({
+      date: d,
+      label: d.toLocaleDateString(undefined, { weekday: 'short' }),
+      key: dateKey(d),
+    });
+  }
+  return days;
+}
+
+/** Local-time YYYY-MM-DD key for grouping. */
+function dateKey(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/**
+ * Aggregate clicks per day for the last 7 days.
+ * Uses `clicksLog` when available; falls back to spreading `clicks`
+ * onto the link's creation day for legacy links.
+ * @returns {{ counts: number[], total: number, days: Array }}
+ */
+function aggregateLast7Days(allLinks) {
+  const days = getLast7Days();
+  const index = new Map(days.map((d, i) => [d.key, i]));
+  const counts = new Array(7).fill(0);
+
+  for (const link of allLinks) {
+    const log = Array.isArray(link.clicksLog) ? link.clicksLog : [];
+
+    if (log.length > 0) {
+      // Preferred path: bucket each click timestamp into its day
+      for (const ts of log) {
+        const k = dateKey(new Date(ts));
+        const i = index.get(k);
+        if (i !== undefined) counts[i]++;
+      }
+    } else if (link.clicks > 0) {
+      // Legacy fallback: attribute old clicks to the link's creation day
+      const k = dateKey(new Date(link.createdAt));
+      const i = index.get(k);
+      if (i !== undefined) counts[i] += link.clicks;
+    }
+  }
+
+  const total = counts.reduce((a, b) => a + b, 0);
+  return { counts, total, days };
+}
+
 function renderAnalytics() {
   links = getLinks();
+
+  // ---- Stat cards ----
+  const totalClicks = links.reduce((sum, l) => sum + (l.clicks || 0), 0);
   els.totalLinks.textContent = links.length;
-  els.totalClicks.textContent = links.reduce((sum, l) => sum + l.clicks, 0);
+  els.totalClicks.textContent = totalClicks;
+
+  // Top link (by clicks)
+  const top = links.reduce(
+    (best, l) => (l.clicks > (best?.clicks ?? -1) ? l : best),
+    null
+  );
+  if (top && top.clicks > 0) {
+    els.topLink.textContent = `${top.shortCode} (${top.clicks})`;
+    els.topLink.title = top.originalUrl;
+  } else {
+    els.topLink.textContent = '—';
+    els.topLink.removeAttribute('title');
+  }
+
+  // ---- Chart ----
+  const { counts, total, days } = aggregateLast7Days(links);
+
+  els.chartTotal.textContent = `${total} click${total === 1 ? '' : 's'}`;
+
+  // No data → show empty message, hide bars + labels
+  if (total === 0) {
+    els.chartBars.innerHTML = '';
+    els.chartLabels.innerHTML = '';
+    els.chartEmpty.hidden = false;
+    return;
+  }
+  els.chartEmpty.hidden = true;
+
+  // Scale bars relative to the max, with a 4px floor for zero values
+  const max = Math.max(...counts, 1);
+
+  els.chartBars.innerHTML = days.map((d, i) => {
+    const value = counts[i];
+    const pct = value === 0 ? 0 : Math.max((value / max) * 100, 8);
+    return `
+      <div class="bar-wrap" title="${d.label}: ${value} click${value === 1 ? '' : 's'}">
+        <span class="bar-value">${value > 0 ? value : ''}</span>
+        <div class="bar" style="height: ${pct}%"></div>
+      </div>
+    `;
+  }).join('');
+
+  // Label row aligned under the bars
+  els.chartLabels.innerHTML = days.map(d =>
+    `<span class="chart__label">${d.label}</span>`
+  ).join('');
 }
 
 // =====================================================
