@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LinkShortener</title>
     <link rel="stylesheet" href="css/style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
     <!-- Header -->
@@ -30,38 +36,56 @@
 
     <!-- Main -->
     <main class="main">
-      <!-- Page: Shorten -->
+      <!-- Page: Shorten (Landing style) -->
       <section class="page is-active" id="page-shorten">
-        <h1 class="page__title">Shorten your URL</h1>
+        <div class="hero">
+          <h1 class="hero__title">
+            <span class="hero__title-line1">Shorter Links.</span>
+            <span class="hero__title-line2">Deeper Engagement.</span>
+          </h1>
+          <p class="hero__subtitle">
+            Take full control. Create short, memorable links in seconds and
+            manage them all in one place.
+          </p>
 
-        <form class="shorten-form" id="shortenForm" novalidate>
-          <input
-            type="text"
-            id="urlInput"
-            class="input"
-            placeholder="Enter long URL (e.g. https://example.com/very/long/path)"
-            autocomplete="off"
-          />
-          <button type="submit" class="btn btn--primary" id="shortenBtn">
-            Shorten
-          </button>
-        </form>
+          <form class="hero__form" id="shortenForm" novalidate>
+            <span class="hero__form-icon" aria-hidden="true">🔗</span>
+            <input
+              type="text"
+              id="urlInput"
+              class="hero__input"
+              placeholder="Paste your long url"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button type="submit" class="hero__btn" id="shortenBtn">
+              Short link
+            </button>
+          </form>
 
-        <p class="error" id="urlError" role="alert"></p>
+          <p class="error hero__error" id="urlError" role="alert"></p>
 
-        <!-- Result card (hidden by default) -->
-        <div class="result" id="result" hidden>
-          <p class="result__label">Your shortened URL:</p>
-          <div class="result__row">
-            <a
-              href="#"
-              id="resultLink"
-              class="result__link"
-              target="_blank"
-              rel="noopener"
-              >short.ly/xxxxx</a
-            >
-            <button class="btn btn--ghost" id="copyBtn">Copy</button>
+          <ul class="hero__features">
+            <li><span class="check">✓</span> Fast &amp; free</li>
+            <li><span class="check">✓</span> Unlimited short links</li>
+            <li><span class="check">✓</span> Local &amp; private</li>
+          </ul>
+
+          <!-- Result card -->
+          <div class="result" id="result" hidden>
+            <p class="result__label">Your shortened URL:</p>
+            <div class="result__row">
+              <a
+                href="#"
+                id="resultLink"
+                class="result__link"
+                target="_blank"
+                rel="noopener"
+              >
+                short.ly/xxxxx
+              </a>
+              <button class="btn btn--ghost" id="copyBtn">Copy</button>
+            </div>
           </div>
         </div>
       </section>
