@@ -740,3 +740,105 @@ body {
     position: absolute;
   }
 }
+
+/* =====================================================
+   PHASE 5 & 6 — Table polish: badges, actions, links
+   ===================================================== */
+
+.cell-original {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.short-link {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 8px;
+  background: rgba(139, 92, 246, 0.1);
+  color: #2834d9;
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-decoration: none;
+  transition:
+    background 0.15s,
+    transform 0.1s;
+}
+.short-link:hover {
+  background: rgba(139, 92, 246, 0.2);
+  transform: translateY(-1px);
+}
+[data-theme="dark"] .short-link {
+  background: rgba(167, 139, 250, 0.15);
+  color: #b5bcfd;
+}
+[data-theme="dark"] .short-link:hover {
+  background: rgba(167, 139, 250, 0.25);
+}
+
+.cell-date {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.badge {
+  display: inline-block;
+  min-width: 28px;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+}
+.badge--active {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #059669;
+}
+[data-theme="dark"] .badge--active {
+  color: #34d399;
+}
+
+.row-actions {
+  display: flex;
+  gap: 0.25rem;
+  justify-content: flex-end;
+}
+
+.icon-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  line-height: 1;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+.icon-btn:hover {
+  background: var(--bg);
+  color: var(--text);
+  border-color: var(--border);
+}
+.icon-btn--danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* Mobile: hide the "Clicks" & "Date" text columns and shrink actions */
+@media (max-width: 640px) {
+  .table th:nth-child(3),
+  .table td:nth-child(3),
+  .table th:nth-child(4),
+  .table td:nth-child(4) {
+    display: none;
+  }
+}
