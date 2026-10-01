@@ -46,9 +46,14 @@ No frameworks. No build step. No backend. Just clean code that runs entirely in 
 
 ### Screenshots
 
-| Shorten | My Links |
+| Home Page1 |
 |:---:|:---:|
-| _Add screenshot_ | _Add screenshot_ |
+<img src="./screenshots/HomePage_Light" width="400" />
+
+| Home Page2 |
+|:---:|:---:|
+<img src="./screenshots/HomePage_Dark" width="400" />
+
 
 | Analytics | Settings |
 |:---:|:---:|
