@@ -51,6 +51,12 @@ const els = {
   leaderboard:   $('#leaderboard'),
   leaderboardEmpty: $('#leaderboardEmpty'),
 
+  // Settings
+  exportBtn:   $('#exportBtn'),
+  importBtn:   $('#importBtn'),
+  importFile:  $('#importFile'),
+  clearBtn:    $('#clearBtn'),
+
   // Toast
   toastContainer: $('#toastContainer'),
 
@@ -79,20 +85,37 @@ els.menuToggle.addEventListener('click', () => {
   els.nav.classList.toggle('is-open');
 });
 
+// Close mobile nav on outside click
+document.addEventListener('click', (e) => {
+  if (!els.nav.classList.contains('is-open')) return;
+  if (els.nav.contains(e.target)) return;
+  if (els.menuToggle.contains(e.target)) return;
+  els.nav.classList.remove('is-open');
+});
+
+// Close mobile nav on Escape
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    els.nav.classList.remove('is-open');
+  }
+});
 
 // =====================================================
 // Theme toggle
 // =====================================================
-function applyTheme(theme) {
+function applyTheme(theme, persist = true) {
   document.documentElement.dataset.theme = theme;
   els.themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
   $$('input[name="theme"]').forEach(r => (r.checked = r.value === theme));
+  if (persist) {
+    settings = saveSettings({ theme });
+  }
 }
 els.themeToggle.addEventListener('click', () => {
   const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
   applyTheme(next);
 });
-applyTheme('light');
+applyTheme(settings.theme || 'light');
 
 // =====================================================
 // Toast notifications
@@ -110,6 +133,195 @@ function showToast(message, type = 'info', duration = 3000) {
     setTimeout(() => toast.remove(), 250);
   }, duration);
 }
+
+// =====================================================
+// PHASE 9 — Settings page
+// =====================================================
+
+// --- Apply saved settings to the UI on load ---
+(function initSettingsUI() {
+  // Theme radios
+  $$('input[name="theme"]').forEach(r => {
+    r.checked = r.value === (settings.theme || 'light');
+  });
+
+  // Expiry radios
+  $$('input[name="expiry"]').forEach(r => {
+    r.checked = r.value === (settings.defaultExpiry || 'never');
+  });
+})();
+
+// --- Theme radio changes ---
+$$('input[name="theme"]').forEach(r => {
+  r.addEventListener('change', (e) => {
+    if (e.target.checked) applyTheme(e.target.value);
+  });
+});
+
+// --- Expiry radio changes ---
+$$('input[name="expiry"]').forEach(r => {
+  r.addEventListener('change', (e) => {
+    if (!e.target.checked) return;
+    settings = saveSettings({ defaultExpiry: e.target.value });
+    showToast(`Default expiry set to ${labelForExpiry(e.target.value)}.`, 'success', 1800);
+  });
+});
+
+function labelForExpiry(v) {
+  return v === 'never' ? 'Never' : `${v} days`;
+}
+
+// --- Export ---
+els.exportBtn.addEventListener('click', () => {
+  const payload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    settings: loadSettings(),
+    links: getLinks(),
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: 'application/json',
+  });
+  const url = URL.createObjectURL(blob);
+  const stamp = new Date().toISOString().slice(0, 10);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `linkshortener-backup-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+
+  showToast('Data exported.', 'success', 1800);
+});
+
+// --- Import ---
+els.importBtn.addEventListener('click', () => {
+  els.importFile.value = ''; // allow re-selecting the same file
+  els.importFile.click();
+});
+
+els.importFile.addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+
+    // Accept either { links: [...] } or a plain array
+    const incoming = Array.isArray(parsed)
+      ? parsed
+      : Array.isArray(parsed.links)
+        ? parsed.links
+        : null;
+
+    if (!incoming) {
+      showToast('Invalid backup file.', 'error');
+      return;
+    }
+
+    const existing = getLinks();
+    const choice = confirm(
+      `Import ${incoming.length} link(s).\n\n` +
+      `Click OK to MERGE with your ${existing.length} existing link(s).\n` +
+      `Click Cancel to choose REPLACE...`
+    );
+
+    let replace = false;
+    if (!choice) {
+      replace = confirm(
+        `REPLACE all ${existing.length} existing link(s) with ${incoming.length} imported link(s)?\n\n` +
+        `Click OK to replace. Click Cancel to abort.`
+      );
+      if (!replace) {
+        showToast('Import cancelled.', 'info', 1500);
+        return;
+      }
+    }
+
+    // Sanitize/normalize imported links
+    const sanitized = incoming
+      .filter(l => l && typeof l === 'object')
+      .map(l => ({
+        id: typeof l.id === 'string' ? l.id : crypto.randomUUID(),
+        originalUrl: String(l.originalUrl || ''),
+        shortCode: String(l.shortCode || '').slice(0, 12),
+        clicks: Number.isFinite(l.clicks) ? l.clicks : 0,
+        clicksLog: Array.isArray(l.clicksLog) ? l.clicksLog.filter(Number.isFinite) : [],
+        createdAt: Number.isFinite(l.createdAt) ? l.createdAt : Date.now(),
+        expiresAt: l.expiresAt ?? null,
+      }))
+      .filter(l => l.originalUrl && l.shortCode);
+
+    let final;
+    if (replace) {
+      final = sanitized;
+    } else {
+      // Merge — dedupe by shortCode (keep existing on conflict)
+      const seen = new Set(existing.map(l => l.shortCode));
+      final = [...existing];
+      for (const l of sanitized) {
+        if (seen.has(l.shortCode)) continue;
+        final.push(l);
+        seen.add(l.shortCode);
+      }
+    }
+
+    saveLinks(final);
+    links = final;
+
+    // Also import settings if present
+    if (parsed && typeof parsed.settings === 'object' && parsed.settings) {
+      settings = saveSettings(parsed.settings);
+      applyTheme(settings.theme || 'light');
+      $$('input[name="expiry"]').forEach(r => {
+        r.checked = r.value === settings.defaultExpiry;
+      });
+    }
+
+    renderLinks();
+    renderAnalytics();
+    showToast(`Imported ${sanitized.length} link(s).`, 'success');
+  } catch (err) {
+    console.error('Import failed:', err);
+    showToast('Could not read that file.', 'error');
+  }
+});
+
+// --- Clear All ---
+els.clearBtn.addEventListener('click', () => {
+  const count = getLinks().length;
+  if (count === 0) {
+    showToast('Nothing to clear.', 'info', 1500);
+    return;
+  }
+
+  const ok = confirm(
+    `Delete ALL ${count} link(s) and reset settings?\n\n` +
+    `This cannot be undone.`
+  );
+  if (!ok) return;
+
+  clearAllLinks();
+  localStorage.removeItem(SETTINGS_KEY);
+
+  // Reset in-memory state
+  links = [];
+  settings = { ...DEFAULT_SETTINGS };
+
+  // Reset UI
+  applyTheme(settings.theme, false);
+  $$('input[name="expiry"]').forEach(r => {
+    r.checked = r.value === settings.defaultExpiry;
+  });
+
+  renderLinks();
+  renderAnalytics();
+  showToast('All data cleared.', 'success');
+});
+
 
 // =====================================================
 // PHASE 5 helpers — clipboard, time, click tracking
@@ -173,6 +385,15 @@ function relativeTime(ts) {
     day: 'numeric',
   });
 }
+
+/** Small inline badge showing time remaining until expiry. */
+function expiryBadge(expiresAt) {
+  const diff = expiresAt - Date.now();
+  if (diff <= 0) return '<span class="badge badge--expired">expired</span>';
+  const days = Math.ceil(diff / 86400000);
+  return `<span class="badge badge--expiring" title="Expires ${new Date(expiresAt).toLocaleString()}">${days}d</span>`;
+}
+
 
 /**
  * Increment clicks for a given link id and persist.
@@ -332,6 +553,43 @@ function deleteLink(id) {
 function clearAllLinks() {
   localStorage.removeItem(STORAGE_KEY);
 }
+
+// =====================================================
+// PHASE 9 — Settings storage
+// =====================================================
+const SETTINGS_KEY = 'linkshortener.settings.v1';
+
+const DEFAULT_SETTINGS = {
+  theme: 'light',         // 'light' | 'dark'
+  defaultExpiry: 'never', // 'never' | '7' | '30'
+};
+
+/** @returns {{theme:string, defaultExpiry:string}} */
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return { ...DEFAULT_SETTINGS };
+    const parsed = JSON.parse(raw);
+    return { ...DEFAULT_SETTINGS, ...parsed };
+  } catch (err) {
+    console.error('Failed to load settings:', err);
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+/** @param {Partial<typeof DEFAULT_SETTINGS>} patch */
+function saveSettings(patch) {
+  const current = loadSettings();
+  const merged = { ...current, ...patch };
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(merged));
+  } catch (err) {
+    console.error('Failed to save settings:', err);
+  }
+  return merged;
+}
+
+let settings = loadSettings();
 
 // =====================================================
 // Store (in-memory copy for rendering)
@@ -525,6 +783,9 @@ function applyFilters(all) {
   const rangeStart = getRangeStart();
 
   return all.filter(link => {
+    // Hide expired links
+    if (isExpired(link)) return false;
+
     // Time range
     if (rangeStart !== null && link.createdAt < rangeStart) return false;
 
@@ -597,6 +858,7 @@ function renderLinks() {
              rel="noopener">
             ${link.shortCode}
           </a>
+          ${link.expiresAt ? expiryBadge(link.expiresAt) : ''}
         </td>
         <td><span class="${clickBadgeClass}">${link.clicks}</span></td>
         <td><span class="cell-date" title="${new Date(link.createdAt).toLocaleString()}">${relativeTime(link.createdAt)}</span></td>

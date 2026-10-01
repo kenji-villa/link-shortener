@@ -94,7 +94,6 @@
       </section>
 
       <!-- Page: My Links -->
-      <!-- Page: My Links -->
       <section class="page" id="page-links">
         <h1 class="page__title">My Links</h1>
 
@@ -257,37 +256,55 @@
 
         <div class="setting-group">
           <h2 class="setting-group__title">Appearance</h2>
-          <label class="radio"
-            ><input type="radio" name="theme" value="light" /> Light</label
-          >
-          <label class="radio"
-            ><input type="radio" name="theme" value="dark" /> Dark</label
-          >
+          <label class="radio">
+            <input type="radio" name="theme" value="light" /> Light
+          </label>
+          <label class="radio">
+            <input type="radio" name="theme" value="dark" /> Dark
+          </label>
         </div>
 
         <div class="setting-group">
           <h2 class="setting-group__title">Default link expiration</h2>
-          <label class="radio"
-            ><input type="radio" name="expiry" value="never" checked />
-            Never</label
-          >
-          <label class="radio"
-            ><input type="radio" name="expiry" value="7" /> 7 days</label
-          >
-          <label class="radio"
-            ><input type="radio" name="expiry" value="30" /> 30 days</label
-          >
+          <p class="setting-group__hint">Applies to newly shortened links.</p>
+          <label class="radio">
+            <input type="radio" name="expiry" value="never" /> Never
+          </label>
+          <label class="radio">
+            <input type="radio" name="expiry" value="7" /> 7 days
+          </label>
+          <label class="radio">
+            <input type="radio" name="expiry" value="30" /> 30 days
+          </label>
         </div>
 
         <div class="setting-group">
           <h2 class="setting-group__title">Data</h2>
+          <p class="setting-group__hint">
+            Exports include all your links, clicks, and settings.
+          </p>
           <div class="btn-row">
-            <button class="btn btn--ghost" id="exportBtn">Export Data</button>
-            <button class="btn btn--ghost" id="importBtn">Import Data</button>
+            <button class="btn btn--ghost" id="exportBtn">⬇ Export Data</button>
+            <button class="btn btn--ghost" id="importBtn">⬆ Import Data</button>
             <button class="btn btn--danger" id="clearBtn">
-              Clear All Data
+              🗑 Clear All Data
             </button>
           </div>
+          <!-- Hidden file input for import -->
+          <input
+            type="file"
+            id="importFile"
+            accept="application/json,.json"
+            hidden
+          />
+        </div>
+
+        <div class="setting-group">
+          <h2 class="setting-group__title">About</h2>
+          <p class="setting-group__hint">
+            LinkShortener — a local URL shortener built with vanilla HTML, CSS,
+            and JS. All data is stored in your browser only.
+          </p>
         </div>
       </section>
     </main>

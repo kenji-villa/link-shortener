@@ -381,6 +381,79 @@ body {
   flex-wrap: wrap;
 }
 
+/* =====================================================
+   PHASE 9 — Settings polish & misc
+   ===================================================== */
+
+.setting-group {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.25rem 1.35rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.setting-group__title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+  letter-spacing: -0.01em;
+}
+
+.setting-group__hint {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 0.9rem;
+}
+
+.radio {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+.radio input {
+  accent-color: var(--primary);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.btn-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Expiry badges */
+.badge--expiring {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #b45309;
+  margin-left: 0.4rem;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.45rem;
+}
+[data-theme="dark"] .badge--expiring {
+  color: #fbbf24;
+}
+
+.badge--expired {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #dc2626;
+  margin-left: 0.4rem;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.45rem;
+}
+[data-theme="dark"] .badge--expired {
+  color: #fca5a5;
+}
+
 /* ---------- Toast ---------- */
 .toast-container {
   position: fixed;
@@ -456,6 +529,9 @@ body {
   }
   .result__row {
     justify-content: space-between;
+  }
+  .header__inner {
+    position: relative;
   }
 }
 
