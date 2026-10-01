@@ -875,10 +875,10 @@ function renderSparkline(container, values) {
 function renderAreaChart(values, days) {
   const svg = els.areaChart;
   const w = 700;
-  const h = 280;
-  const padTop = 12;
-  const padBottom = 32;   // room for X-axis labels
-  const padLeft = 26;     // room for Y-axis labels
+  const h = 320;
+  const padTop = 14;
+  const padBottom = 56;   
+  const padLeft = 26;     
   const padRight = 8;
   const innerW = w - padLeft - padRight;
   const innerH = h - padTop - padBottom;
@@ -926,7 +926,7 @@ function renderAreaChart(values, days) {
       <text x="${padLeft - 6}" y="${(y + 3).toFixed(1)}"
             text-anchor="end" dominant-baseline="middle"
             fill="currentColor" fill-opacity="0.45"
-            font-size="10" font-family="system-ui">${label}</text>
+            font-size="11" font-family="system-ui">${label}</text>
     `;
   }
 
@@ -963,10 +963,11 @@ function renderAreaChart(values, days) {
     if (isLast) anchor = 'end';
 
     xLabels += `
-      <text x="${x.toFixed(1)}" y="${(h - 10).toFixed(1)}"
+      <text x="${x.toFixed(1)}" y="${(h - 28).toFixed(1)}"
             text-anchor="${anchor}" dominant-baseline="hanging"
-            fill="currentColor" fill-opacity="0.55"
-            font-size="10" font-family="system-ui">${label}</text>
+            fill="currentColor" fill-opacity="0.65"
+            font-size="12" font-family="system-ui"
+            font-weight="500">${label}</text>
     `;
   });
 

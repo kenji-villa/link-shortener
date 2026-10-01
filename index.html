@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LinkShortener</title>
+    <title>Linkify | LinkShortener</title>
+    <link rel="shortcut icon" href="./assets/Icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="css/style.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -16,7 +17,9 @@
     <!-- Header -->
     <header class="header">
       <div class="header__inner">
-        <a href="#" class="logo">🔗 LinkShortener</a>
+        <a href="#" class="logo">
+          <img src="./assets/Logo.png" width="110" height="55" alt="Linkify" />
+        </a>
         <nav class="nav" id="nav">
           <button class="nav__link is-active" data-page="shorten">
             Shorten
@@ -218,7 +221,7 @@
             <div class="chart-area">
               <svg
                 id="areaChart"
-                viewBox="0 0 700 260"
+                viewBox="0 0 700 340"
                 preserveAspectRatio="none"
                 aria-label="Clicks over time"
               ></svg>
