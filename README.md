@@ -48,7 +48,7 @@ No frameworks. No build step. No backend. Just clean code that runs entirely in 
 
 ![Home Page 2](screenshots/HomePage_Dark.png)
 
-![My Links](screenshots/MyLinkss.png)
+![My Links](screenshots/MyLinks.png)
 
 ![Analytics](screenshots/Analytics.png)
 
