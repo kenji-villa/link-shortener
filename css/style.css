@@ -11,8 +11,8 @@
   --text: #1a1a2e;
   --text-muted: #6b7280;
   --border: #e5e7eb;
-  --primary: #4f46e5;
-  --primary-hover: #4338ca;
+  --primary: #2834d9;
+  --primary-hover: #5c5ff6;
   --danger: #ef4444;
   --success: #10b981;
   --radius: 10px;
@@ -1022,7 +1022,7 @@ input[type="search"]::-webkit-search-cancel-button:hover {
 .stat-tile__spark {
   width: 80px;
   height: 28px;
-  color: #7c3aed;
+  color: #2834d9;
   flex-shrink: 0;
 }
 .stat-tile__spark svg {
@@ -1044,7 +1044,7 @@ input[type="search"]::-webkit-search-cancel-button:hover {
   text-align: center;
 }
 [data-theme="dark"] .stat-tile__spark {
-  color: #a78bfa;
+  color: #5c5ff6;
 }
 
 /* --- Dashboard grid: main chart + side panel --- */
@@ -1112,11 +1112,11 @@ input[type="search"]::-webkit-search-cancel-button:hover {
 }
 .tab.is-active {
   background: var(--surface);
-  color: #7c3aed;
+  color: #2834d9;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 [data-theme="dark"] .tab.is-active {
-  color: #c4b5fd;
+  color: #5c5ff6;
 }
 
 /* --- Chart area --- */
@@ -1194,11 +1194,11 @@ input[type="search"]::-webkit-search-cancel-button:hover {
 .leaderboard__code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-weight: 700;
-  color: #7c3aed;
+  color: #2834d9;
   margin-right: auto;
 }
 [data-theme="dark"] .leaderboard__code {
-  color: #c4b5fd;
+  color: #5c5ff6;
 }
 .leaderboard__clicks {
   font-weight: 700;
@@ -1213,7 +1213,7 @@ input[type="search"]::-webkit-search-cancel-button:hover {
 }
 .leaderboard__bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #8b5cf6, #6d28d9);
+  background: linear-gradient(90deg, #5c64f6, #282bd9);
   border-radius: 999px;
   transition: width 0.4s ease;
 }

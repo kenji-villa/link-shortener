@@ -1,5 +1,5 @@
 /* =====================================================
-   LinkShortener — Phase 1-4
+   LinkShortener — Phases 1–9
    ===================================================== */
 
 // ---------- DOM helpers ----------
@@ -14,6 +14,7 @@ const els = {
   menuToggle:   $('#menuToggle'),
   themeToggle:  $('#themeToggle'),
 
+  // Shorten
   shortenForm:  $('#shortenForm'),
   urlInput:     $('#urlInput'),
   urlError:     $('#urlError'),
@@ -30,7 +31,7 @@ const els = {
   linksMeta:    $('#linksMeta'),
   noResults:    $('#noResults'),
 
-  // Analytics — dashboard
+  // Analytics
   totalLinks:    $('#totalLinks'),
   totalClicks:   $('#totalClicks'),
   clicksToday:   $('#clicksToday'),
@@ -59,7 +60,6 @@ const els = {
 
   // Toast
   toastContainer: $('#toastContainer'),
-
 };
 
 // =====================================================
@@ -75,12 +75,10 @@ function switchPage(pageName) {
   if (pageName === 'analytics') renderAnalytics();
 }
 
-// Nav click handlers
 els.navLinks.forEach(btn =>
   btn.addEventListener('click', () => switchPage(btn.dataset.page))
 );
 
-// Mobile menu toggle
 els.menuToggle.addEventListener('click', () => {
   els.nav.classList.toggle('is-open');
 });
@@ -101,6 +99,42 @@ document.addEventListener('keydown', (e) => {
 });
 
 // =====================================================
+// PHASE 9 — Settings storage
+// (Declared early — theme toggle and other code depend on `settings`)
+// =====================================================
+const SETTINGS_KEY = 'linkshortener.settings.v1';
+
+const DEFAULT_SETTINGS = {
+  theme: 'light',         // 'light' | 'dark'
+  defaultExpiry: 'never', // 'never' | '7' | '30'
+};
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return { ...DEFAULT_SETTINGS };
+    const parsed = JSON.parse(raw);
+    return { ...DEFAULT_SETTINGS, ...parsed };
+  } catch (err) {
+    console.error('Failed to load settings:', err);
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+function saveSettings(patch) {
+  const current = loadSettings();
+  const merged = { ...current, ...patch };
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(merged));
+  } catch (err) {
+    console.error('Failed to save settings:', err);
+  }
+  return merged;
+}
+
+let settings = loadSettings();
+
+// =====================================================
 // Theme toggle
 // =====================================================
 function applyTheme(theme, persist = true) {
@@ -111,10 +145,12 @@ function applyTheme(theme, persist = true) {
     settings = saveSettings({ theme });
   }
 }
+
 els.themeToggle.addEventListener('click', () => {
   const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
   applyTheme(next);
 });
+
 applyTheme(settings.theme || 'light');
 
 // =====================================================
@@ -135,30 +171,27 @@ function showToast(message, type = 'info', duration = 3000) {
 }
 
 // =====================================================
-// PHASE 9 — Settings page
+// PHASE 9 — Settings page listeners
 // =====================================================
 
-// --- Apply saved settings to the UI on load ---
+// Apply saved settings to the UI on load
 (function initSettingsUI() {
-  // Theme radios
   $$('input[name="theme"]').forEach(r => {
     r.checked = r.value === (settings.theme || 'light');
   });
-
-  // Expiry radios
   $$('input[name="expiry"]').forEach(r => {
     r.checked = r.value === (settings.defaultExpiry || 'never');
   });
 })();
 
-// --- Theme radio changes ---
+// Theme radio changes
 $$('input[name="theme"]').forEach(r => {
   r.addEventListener('change', (e) => {
     if (e.target.checked) applyTheme(e.target.value);
   });
 });
 
-// --- Expiry radio changes ---
+// Expiry radio changes
 $$('input[name="expiry"]').forEach(r => {
   r.addEventListener('change', (e) => {
     if (!e.target.checked) return;
@@ -171,7 +204,7 @@ function labelForExpiry(v) {
   return v === 'never' ? 'Never' : `${v} days`;
 }
 
-// --- Export ---
+// Export
 els.exportBtn.addEventListener('click', () => {
   const payload = {
     version: 1,
@@ -196,9 +229,9 @@ els.exportBtn.addEventListener('click', () => {
   showToast('Data exported.', 'success', 1800);
 });
 
-// --- Import ---
+// Import
 els.importBtn.addEventListener('click', () => {
-  els.importFile.value = ''; // allow re-selecting the same file
+  els.importFile.value = '';
   els.importFile.click();
 });
 
@@ -210,7 +243,6 @@ els.importFile.addEventListener('change', async (e) => {
     const text = await file.text();
     const parsed = JSON.parse(text);
 
-    // Accept either { links: [...] } or a plain array
     const incoming = Array.isArray(parsed)
       ? parsed
       : Array.isArray(parsed.links)
@@ -241,7 +273,6 @@ els.importFile.addEventListener('change', async (e) => {
       }
     }
 
-    // Sanitize/normalize imported links
     const sanitized = incoming
       .filter(l => l && typeof l === 'object')
       .map(l => ({
@@ -259,7 +290,6 @@ els.importFile.addEventListener('change', async (e) => {
     if (replace) {
       final = sanitized;
     } else {
-      // Merge — dedupe by shortCode (keep existing on conflict)
       const seen = new Set(existing.map(l => l.shortCode));
       final = [...existing];
       for (const l of sanitized) {
@@ -272,7 +302,6 @@ els.importFile.addEventListener('change', async (e) => {
     saveLinks(final);
     links = final;
 
-    // Also import settings if present
     if (parsed && typeof parsed.settings === 'object' && parsed.settings) {
       settings = saveSettings(parsed.settings);
       applyTheme(settings.theme || 'light');
@@ -290,7 +319,7 @@ els.importFile.addEventListener('change', async (e) => {
   }
 });
 
-// --- Clear All ---
+// Clear All
 els.clearBtn.addEventListener('click', () => {
   const count = getLinks().length;
   if (count === 0) {
@@ -307,11 +336,9 @@ els.clearBtn.addEventListener('click', () => {
   clearAllLinks();
   localStorage.removeItem(SETTINGS_KEY);
 
-  // Reset in-memory state
   links = [];
   settings = { ...DEFAULT_SETTINGS };
 
-  // Reset UI
   applyTheme(settings.theme, false);
   $$('input[name="expiry"]').forEach(r => {
     r.checked = r.value === settings.defaultExpiry;
@@ -322,18 +349,11 @@ els.clearBtn.addEventListener('click', () => {
   showToast('All data cleared.', 'success');
 });
 
-
 // =====================================================
-// PHASE 5 helpers — clipboard, time, click tracking
+// PHASE 5 helpers — clipboard, time, expiry, click tracking
 // =====================================================
 
-/**
- * Copy text to clipboard with a legacy fallback.
- * @param {string} text
- * @returns {Promise<boolean>}
- */
 async function copyToClipboard(text) {
-  // Modern API (requires HTTPS or localhost)
   if (navigator.clipboard && window.isSecureContext) {
     try {
       await navigator.clipboard.writeText(text);
@@ -343,7 +363,6 @@ async function copyToClipboard(text) {
     }
   }
 
-  // Fallback for insecure contexts / older browsers
   try {
     const ta = document.createElement('textarea');
     ta.value = text;
@@ -362,11 +381,6 @@ async function copyToClipboard(text) {
   }
 }
 
-/**
- * Human-readable relative time.
- * @param {number} ts
- * @returns {string}
- */
 function relativeTime(ts) {
   const diff = Date.now() - ts;
   const sec = Math.floor(diff / 1000);
@@ -386,7 +400,6 @@ function relativeTime(ts) {
   });
 }
 
-/** Small inline badge showing time remaining until expiry. */
 function expiryBadge(expiresAt) {
   const diff = expiresAt - Date.now();
   if (diff <= 0) return '<span class="badge badge--expired">expired</span>';
@@ -394,11 +407,23 @@ function expiryBadge(expiresAt) {
   return `<span class="badge badge--expiring" title="Expires ${new Date(expiresAt).toLocaleString()}">${days}d</span>`;
 }
 
-
 /**
- * Increment clicks for a given link id and persist.
- * @param {string} id
+ * Convert the settings expiry value into a timestamp or null.
+ * @param {string} value 'never' | '7' | '30'
+ * @returns {number|null}
  */
+function expiryToTimestamp(value) {
+  if (value === 'never' || !value) return null;
+  const days = parseInt(value, 10);
+  if (!Number.isFinite(days) || days <= 0) return null;
+  return Date.now() + days * 86400000;
+}
+
+/** True if a link is expired (expiresAt set and in the past). */
+function isExpired(link) {
+  return typeof link.expiresAt === 'number' && link.expiresAt <= Date.now();
+}
+
 function incrementClicks(id) {
   const stored = loadLinks();
   const target = stored.find(l => l.id === id);
@@ -406,12 +431,9 @@ function incrementClicks(id) {
 
   target.clicks = (target.clicks || 0) + 1;
 
-  // Phase 8: track click timestamps for the chart
   if (!Array.isArray(target.clicksLog)) target.clicksLog = [];
   target.clicksLog.push(Date.now());
 
-  // Cap log length so a heavily-clicked link doesn't bloat storage.
-  // 1000 entries ≈ 13KB per link — plenty for a local app.
   const MAX_LOG = 1000;
   if (target.clicksLog.length > MAX_LOG) {
     target.clicksLog = target.clicksLog.slice(-MAX_LOG);
@@ -422,7 +444,7 @@ function incrementClicks(id) {
 }
 
 // =====================================================
-// PHASE 2: URL Validation
+// PHASE 2 — URL validation
 // =====================================================
 function validateUrl(raw) {
   const value = raw.trim();
@@ -454,17 +476,12 @@ function validateUrl(raw) {
 }
 
 // =====================================================
-// PHASE 3: Short code generation
+// PHASE 3 — Short code generation
 // =====================================================
 const BASE62 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 const CODE_LENGTH = 5;
 const SHORT_DOMAIN = 'short.ly';
 
-/**
- * Generate a random base62 code of given length.
- * @param {number} length
- * @returns {string}
- */
 function generateCode(length = CODE_LENGTH) {
   let code = '';
   const bytes = new Uint8Array(length);
@@ -475,38 +492,20 @@ function generateCode(length = CODE_LENGTH) {
   return code;
 }
 
-/**
- * Generate a code guaranteed not to collide with existing links.
- * @param {Array<{shortCode:string}>} existingLinks
- * @returns {string}
- */
 function generateUniqueCode(existingLinks) {
   const taken = new Set(existingLinks.map(l => l.shortCode));
-  // Cap attempts to avoid infinite loop in pathological cases
   for (let i = 0; i < 1000; i++) {
     const code = generateCode();
     if (!taken.has(code)) return code;
   }
-  // Extremely unlikely fallback: extend length
   return generateCode(CODE_LENGTH + 2);
 }
 
 // =====================================================
-// PHASE 4: LocalStorage persistence
+// PHASE 4 — LocalStorage persistence
 // =====================================================
 const STORAGE_KEY = 'linkshortener.links.v1';
 
-/**
- * @typedef {Object} ShortLink
- * @property {string} id           - internal unique id
- * @property {string} originalUrl  - normalized long URL
- * @property {string} shortCode    - base62 short code
- * @property {number} clicks       - click counter
- * @property {number} createdAt    - timestamp (ms)
- * @property {number|null} expiresAt - timestamp (ms) or null
- */
-
-/** @returns {ShortLink[]} */
 function loadLinks() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -520,80 +519,36 @@ function loadLinks() {
   }
 }
 
-/** @param {ShortLink[]} links */
-function saveLinks(links) {
+function saveLinks(linksToSave) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(links));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(linksToSave));
   } catch (err) {
     console.error('Failed to save links:', err);
     showToast('Storage is full or unavailable.', 'error');
   }
 }
 
-/** @returns {ShortLink[]} */
 function getLinks() {
   return loadLinks();
 }
 
-/** @param {ShortLink} link */
 function addLink(link) {
-  const links = loadLinks();
-  links.unshift(link); // newest first
-  saveLinks(links);
+  const stored = loadLinks();
+  stored.unshift(link);
+  saveLinks(stored);
   return link;
 }
 
-/** @param {string} id */
 function deleteLink(id) {
-  const links = loadLinks().filter(l => l.id !== id);
-  saveLinks(links);
+  const stored = loadLinks().filter(l => l.id !== id);
+  saveLinks(stored);
 }
 
-/** Clears everything */
 function clearAllLinks() {
   localStorage.removeItem(STORAGE_KEY);
 }
 
-// =====================================================
-// PHASE 9 — Settings storage
-// =====================================================
-const SETTINGS_KEY = 'linkshortener.settings.v1';
-
-const DEFAULT_SETTINGS = {
-  theme: 'light',         // 'light' | 'dark'
-  defaultExpiry: 'never', // 'never' | '7' | '30'
-};
-
-/** @returns {{theme:string, defaultExpiry:string}} */
-function loadSettings() {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return { ...DEFAULT_SETTINGS };
-    const parsed = JSON.parse(raw);
-    return { ...DEFAULT_SETTINGS, ...parsed };
-  } catch (err) {
-    console.error('Failed to load settings:', err);
-    return { ...DEFAULT_SETTINGS };
-  }
-}
-
-/** @param {Partial<typeof DEFAULT_SETTINGS>} patch */
-function saveSettings(patch) {
-  const current = loadSettings();
-  const merged = { ...current, ...patch };
-  try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(merged));
-  } catch (err) {
-    console.error('Failed to save settings:', err);
-  }
-  return merged;
-}
-
-let settings = loadSettings();
-
-// =====================================================
-// Store (in-memory copy for rendering)
-// =====================================================
+// In-memory mirror (kept in sync by renderers)
 let links = getLinks();
 
 // =====================================================
@@ -622,10 +577,6 @@ els.urlInput.addEventListener('input', () => {
   }
 });
 
-/**
- * Create + persist a short link and display the result.
- * @param {string} validUrl
- */
 function handleValidUrl(validUrl) {
   // Duplicate check — same original URL returns existing link
   const existing = links.find(l => l.originalUrl === validUrl);
@@ -635,11 +586,10 @@ function handleValidUrl(validUrl) {
     return;
   }
 
-  // Expiration (default from settings; we'll wire settings in Phase 9, keep 'never' for now)
-  const expiresAt = null;
+  // PHASE 9: apply default expiry from settings
+  const expiresAt = expiryToTimestamp(settings.defaultExpiry);
 
   const code = generateUniqueCode(links);
-  /** @type {ShortLink} */
   const link = {
     id: crypto.randomUUID(),
     originalUrl: validUrl,
@@ -655,18 +605,16 @@ function handleValidUrl(validUrl) {
   showResult(link);
   showToast('Short URL created!', 'success');
 
-  // If user is on My Links, refresh it
   if ($('#page-links').classList.contains('is-active')) renderLinks();
 }
 
 function showResult(link) {
   const shortUrl = `${SHORT_DOMAIN}/${link.shortCode}`;
   els.resultLink.textContent = shortUrl;
-  els.resultLink.href = link.originalUrl; // opening target wired in Phase 5
+  els.resultLink.href = link.originalUrl;
   els.resultLink.dataset.shortUrl = shortUrl;
   els.result.hidden = false;
 
-  // Clear input & focus for next entry
   els.urlInput.value = '';
   els.urlInput.focus();
 }
@@ -677,7 +625,6 @@ els.copyBtn.addEventListener('click', async () => {
 
   if (ok) {
     showToast('Copied to clipboard!', 'success', 1800);
-    // Button feedback
     const original = els.copyBtn.textContent;
     els.copyBtn.textContent = 'Copied!';
     els.copyBtn.disabled = true;
@@ -690,27 +637,23 @@ els.copyBtn.addEventListener('click', async () => {
   }
 });
 
-// Track clicks when the user opens the short link from the result card
 els.resultLink.addEventListener('click', (e) => {
   e.preventDefault();
   const shortUrl = els.resultLink.dataset.shortUrl || els.resultLink.textContent;
   const link = links.find(l => `${SHORT_DOMAIN}/${l.shortCode}` === shortUrl);
   if (link) {
     incrementClicks(link.id);
-    // Open the original URL in a new tab
     window.open(link.originalUrl, '_blank', 'noopener');
     showToast('Opening link…', 'info', 1500);
-    // If My Links is visible, refresh it
     if ($('#page-links').classList.contains('is-active')) renderLinks();
     if ($('#page-analytics').classList.contains('is-active')) renderAnalytics();
   } else {
-    // Fallback — open whatever href is set
     window.open(els.resultLink.href, '_blank', 'noopener');
   }
 });
 
 // =====================================================
-// PHASE 4 (cont.): Render links table
+// PHASE 6 / 7 — Render links table + search & filter
 // =====================================================
 function formatDate(ts) {
   return new Date(ts).toLocaleDateString(undefined, {
@@ -724,17 +667,12 @@ function truncateUrl(url, max = 40) {
   return clean.length > max ? clean.slice(0, max - 1) + '…' : clean;
 }
 
-
-
 /** Current filter state (source of truth for renderLinks). */
 const filterState = {
   query: '',
   range: 'all', // 'all' | 'today' | 'week' | 'month'
 };
 
-// =====================================================
-// PHASE 7 — Listeners for search & filter
-// =====================================================
 els.searchInput.addEventListener('input', (e) => {
   filterState.query = e.target.value;
   renderLinks();
@@ -745,26 +683,20 @@ els.filterSelect.addEventListener('change', (e) => {
   renderLinks();
 });
 
-
-/**
- * Returns the start-of-range timestamp for the current filter.
- * @returns {number|null} null means "no time filter"
- */
 function getRangeStart() {
   const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startOfTodayTs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
   switch (filterState.range) {
     case 'today':
-      return startOfToday;
+      return startOfTodayTs;
     case 'week': {
-      // Last 7 days (rolling) — friendlier than "start of calendar week"
-      const d = new Date(startOfToday);
+      const d = new Date(startOfTodayTs);
       d.setDate(d.getDate() - 6);
       return d.getTime();
     }
     case 'month': {
-      const d = new Date(startOfToday);
+      const d = new Date(startOfTodayTs);
       d.setDate(d.getDate() - 29);
       return d.getTime();
     }
@@ -773,44 +705,31 @@ function getRangeStart() {
   }
 }
 
-/**
- * Apply search + filter to a list of links.
- * @param {ShortLink[]} all
- * @returns {ShortLink[]}
- */
 function applyFilters(all) {
   const q = filterState.query.trim().toLowerCase();
   const rangeStart = getRangeStart();
 
   return all.filter(link => {
-    // Hide expired links
     if (isExpired(link)) return false;
-
-    // Time range
     if (rangeStart !== null && link.createdAt < rangeStart) return false;
-
-    // Text search across original URL and short code
     if (q) {
       const haystack = `${link.originalUrl} ${link.shortCode}`.toLowerCase();
       if (!haystack.includes(q)) return false;
     }
-
     return true;
   });
 }
 
 function renderLinks() {
   const all = getLinks();
-  links = all; // keep global in sync
+  links = all;
 
   const filtered = applyFilters(all);
   const hasAny = all.length > 0;
   const hasMatches = filtered.length > 0;
   const isFiltering = filterState.query.trim() !== '' || filterState.range !== 'all';
 
-  // ---- Choose which UI state to show ----
   if (!hasAny) {
-    // No links at all
     els.emptyState.hidden = false;
     els.noResults.hidden = true;
     els.tableWrap.hidden = true;
@@ -819,7 +738,6 @@ function renderLinks() {
   }
 
   if (!hasMatches) {
-    // Links exist but none match
     els.emptyState.hidden = true;
     els.noResults.hidden = false;
     els.tableWrap.hidden = true;
@@ -827,12 +745,10 @@ function renderLinks() {
     return;
   }
 
-  // Has matches → show table
   els.emptyState.hidden = true;
   els.noResults.hidden = true;
   els.tableWrap.hidden = false;
 
-  // Meta line: show only while filtering
   if (isFiltering) {
     els.linksMeta.hidden = false;
     els.linksMeta.textContent = `Showing ${filtered.length} of ${all.length} link${all.length === 1 ? '' : 's'}`;
@@ -840,7 +756,6 @@ function renderLinks() {
     els.linksMeta.hidden = true;
   }
 
-  // Render rows (unchanged markup from Phase 6)
   els.linksBody.innerHTML = filtered.map(link => {
     const shortUrl = `${SHORT_DOMAIN}/${link.shortCode}`;
     const clickBadgeClass = link.clicks > 0 ? 'badge badge--active' : 'badge';
@@ -874,12 +789,8 @@ function renderLinks() {
   }).join('');
 }
 
-
 // =====================================================
-// PHASE 5 — Delegated table actions (hardened)
-// - Registered ONCE at top level
-// - Stops propagation so no double-handling
-// - Guard flag prevents re-entry from rapid clicks
+// PHASE 5 — Delegated table actions (Copy / Open / Delete)
 // =====================================================
 let _handlingClick = false;
 
@@ -889,11 +800,10 @@ els.linksBody.addEventListener('click', async (e) => {
   const actionBtn = e.target.closest('[data-action]');
   const shortLink = e.target.closest('.short-link');
 
-  // --- Action buttons (Copy / Open / Delete) ---
   if (actionBtn) {
     e.preventDefault();
-    e.stopPropagation();           // ← prevent any other handler from firing
-    e.stopImmediatePropagation();  // ← belt and suspenders
+    e.stopPropagation();
+    e.stopImmediatePropagation();
 
     _handlingClick = true;
     try {
@@ -932,13 +842,11 @@ els.linksBody.addEventListener('click', async (e) => {
         return;
       }
     } finally {
-      // Release the guard on the next tick
       setTimeout(() => { _handlingClick = false; }, 0);
     }
     return;
   }
 
-  // --- Short-link anchor click (the pill in the table) ---
   if (shortLink) {
     e.preventDefault();
     e.stopPropagation();
@@ -959,18 +867,13 @@ els.linksBody.addEventListener('click', async (e) => {
   }
 });
 
-
-
 // =====================================================
-// PHASE 8 (redesign) — Analytics dashboard
+// PHASE 8 — Analytics dashboard
 // =====================================================
 
 /** Current chart range in days ('7'|'30'|'90'|'all'). */
 let chartRange = 7;
 
-// ---------- helpers ----------
-
-/** Local-time YYYY-MM-DD key. */
 function dateKey(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -978,23 +881,15 @@ function dateKey(d) {
   return `${y}-${m}-${day}`;
 }
 
-/** Midnight of today in local time. */
 function startOfToday() {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d;
 }
 
-/**
- * Returns an array of days covering the selected range,
- * oldest → newest. Each entry: { date, key }.
- * @param {number|'all'} range
- * @param {ShortLink[]} allLinks
- */
 function getRangeDays(range, allLinks) {
   const today = startOfToday();
 
-  // If range === 'all', span from the oldest link to today
   let count;
   if (range === 'all') {
     const oldest = allLinks.reduce(
@@ -1004,7 +899,7 @@ function getRangeDays(range, allLinks) {
     const oldestDay = new Date(oldest);
     oldestDay.setHours(0, 0, 0, 0);
     const diffDays = Math.round((today - oldestDay) / 86400000) + 1;
-    count = Math.max(diffDays, 7); // at least 7 columns for looks
+    count = Math.max(diffDays, 7);
   } else {
     count = range;
   }
@@ -1018,11 +913,6 @@ function getRangeDays(range, allLinks) {
   return days;
 }
 
-/**
- * Bucket all click timestamps into the given days.
- * Legacy links (no clicksLog) attribute their clicks to createdAt's day.
- * @returns {number[]} same length as days
- */
 function bucketClicks(days, allLinks) {
   const index = new Map(days.map((d, i) => [d.key, i]));
   const counts = new Array(days.length).fill(0);
@@ -1042,13 +932,6 @@ function bucketClicks(days, allLinks) {
   return counts;
 }
 
-/**
- * Build a smooth SVG sparkline path from a numeric series.
- * @param {number[]} values
- * @param {number} w
- * @param {number} h
- * @returns {string} SVG path d
- */
 function sparklinePath(values, w = 80, h = 28) {
   if (values.length < 2) return '';
   const max = Math.max(...values, 1);
@@ -1060,52 +943,13 @@ function sparklinePath(values, w = 80, h = 28) {
     return [x, y];
   });
 
-  // Simple polyline — smooth enough at small size
   return 'M ' + pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' L ');
 }
 
-/**
- * Build a smooth catmull-rom-ish bezier path from a numeric series.
- * @param {number[]} values
- * @param {number} w
- * @param {number} h
- * @returns {{ line: string, area: string }}
- */
-function smoothAreaPath(values, w, h) {
-  if (values.length === 0) return { line: '', area: '' };
-
-  const max = Math.max(...values, 1);
-  const stepX = w / Math.max(values.length - 1, 1);
-
-  const pts = values.map((v, i) => [
-    i * stepX,
-    h - (v / max) * (h - 20) - 10,
-  ]);
-
-  // Bezier smoothing
-  let line = `M ${pts[0][0]},${pts[0][1]}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const [x0, y0] = pts[i];
-    const [x1, y1] = pts[i + 1];
-    const cx = (x0 + x1) / 2;
-    line += ` C ${cx},${y0} ${cx},${y1} ${x1},${y1}`;
-  }
-
-  const area = `${line} L ${pts[pts.length - 1][0]},${h} L ${pts[0][0]},${h} Z`;
-  return { line, area };
-}
-
-/**
- * Format a number with thousands separators.
- */
 function fmt(n) {
   return n.toLocaleString();
 }
 
-/**
- * Compute % change vs the previous equivalent range.
- * @returns {string} like "+12.5% vs prev" or '—'
- */
 function computeDelta(current, previous) {
   if (previous === 0 && current === 0) return '—';
   if (previous === 0) return `+${current} new`;
@@ -1114,9 +958,6 @@ function computeDelta(current, previous) {
   return `${sign}${pct.toFixed(1)}% vs prev`;
 }
 
-// ---------- renderers ----------
-
-/** Render one of the mini sparklines inside a stat tile. */
 function renderSparkline(container, values) {
   if (!container) return;
   if (values.length < 2 || values.every(v => v === 0)) {
@@ -1133,14 +974,13 @@ function renderSparkline(container, values) {
   `;
 }
 
-/** Render the main SVG area chart with axis labels inside the SVG. */
 function renderAreaChart(values, days) {
   const svg = els.areaChart;
   const w = 700;
   const h = 320;
   const padTop = 14;
-  const padBottom = 56;   
-  const padLeft = 26;     
+  const padBottom = 56;
+  const padLeft = 26;
   const padRight = 8;
   const innerW = w - padLeft - padRight;
   const innerH = h - padTop - padBottom;
@@ -1156,14 +996,12 @@ function renderAreaChart(values, days) {
   const max = Math.max(...values, 1);
   const stepX = values.length > 1 ? innerW / (values.length - 1) : 0;
 
-  // Points in SVG coordinate space
   const pts = values.map((v, i) => {
     const x = padLeft + i * stepX;
     const y = padTop + innerH - (v / max) * innerH;
     return [x, y];
   });
 
-  // ---- Smooth bezier line ----
   let line = `M ${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
   for (let i = 0; i < pts.length - 1; i++) {
     const [x0, y0] = pts[i];
@@ -1172,11 +1010,9 @@ function renderAreaChart(values, days) {
     line += ` C ${cx.toFixed(1)},${y0.toFixed(1)} ${cx.toFixed(1)},${y1.toFixed(1)} ${x1.toFixed(1)},${y1.toFixed(1)}`;
   }
 
-  // Area path: line + drop to baseline
   const baselineY = padTop + innerH;
   const area = `${line} L ${pts[pts.length - 1][0].toFixed(1)},${baselineY} L ${pts[0][0].toFixed(1)},${baselineY} Z`;
 
-  // ---- Y-axis gridlines + labels ----
   const yTicks = 4;
   let gridLines = '';
   for (let i = 0; i <= yTicks; i++) {
@@ -1192,7 +1028,6 @@ function renderAreaChart(values, days) {
     `;
   }
 
-  // ---- Data point dots (only for non-zero, and only if not too many) ----
   let dots = '';
   const showDots = values.length <= 45;
   if (showDots) {
@@ -1204,7 +1039,6 @@ function renderAreaChart(values, days) {
     }).join('');
   }
 
-  // ---- X-axis labels (at most ~7 evenly spaced) ----
   const maxLabels = 7;
   const labelStep = Math.max(1, Math.ceil(days.length / maxLabels));
   let xLabels = '';
@@ -1219,7 +1053,6 @@ function renderAreaChart(values, days) {
       day: 'numeric',
     });
 
-    // Keep the first/last labels from being clipped at edges
     let anchor = 'middle';
     if (isFirst) anchor = 'start';
     if (isLast) anchor = 'end';
@@ -1249,7 +1082,6 @@ function renderAreaChart(values, days) {
   `;
 }
 
-/** Render the "Top Performing" leaderboard. */
 function renderLeaderboard(allLinks) {
   const sorted = [...allLinks]
     .filter(l => (l.clicks || 0) > 0)
@@ -1283,8 +1115,6 @@ function renderLeaderboard(allLinks) {
   }).join('');
 }
 
-// ---------- main entry ----------
-
 function renderAnalytics() {
   links = getLinks();
 
@@ -1293,7 +1123,6 @@ function renderAnalytics() {
   const todayStart = startOfToday().getTime();
   const yesterdayStart = todayStart - 86400000;
 
-  // ---- Compute clicks today + yesterday ----
   let clicksToday = 0;
   let clicksYesterday = 0;
   for (const link of allLinks) {
@@ -1304,19 +1133,13 @@ function renderAnalytics() {
     }
   }
 
-  // ---- New links today vs yesterday ----
   const linksToday = allLinks.filter(l => l.createdAt >= todayStart).length;
-  const linksYesterday = allLinks.filter(
-    l => l.createdAt >= yesterdayStart && l.createdAt < todayStart
-  ).length;
 
-  // ---- Top link ----
   const top = allLinks.reduce(
     (best, l) => ((l.clicks || 0) > (best?.clicks || -1) ? l : best),
     null
   );
 
-  // ---- Update stat tiles ----
   els.totalLinks.textContent = fmt(allLinks.length);
   els.linksDelta.textContent = linksToday > 0
     ? `+${linksToday} today`
@@ -1324,7 +1147,6 @@ function renderAnalytics() {
 
   els.totalClicks.textContent = fmt(totalClicks);
   els.clicksDelta.textContent = computeDelta(
-    // clicks in last 7 days vs 7 days before that
     countClicksInWindow(allLinks, 7),
     countClicksInWindow(allLinks, 14) - countClicksInWindow(allLinks, 7)
   );
@@ -1342,14 +1164,12 @@ function renderAnalytics() {
     els.topLinkMeta.textContent = 'No clicks yet';
   }
 
-  // ---- Sparklines ----
   const sparkDays = getRangeDays(7, allLinks);
   const sparkCounts = bucketClicks(sparkDays, allLinks);
   renderSparkline(els.clicksSpark, sparkCounts);
   renderSparkline(els.todaySpark, sparkCounts.slice(-3));
   renderSparkline(els.linksSpark, getRecentLinksSpark(allLinks, 7));
 
-  // ---- Main chart ----
   const range = chartRange;
   const days = getRangeDays(range, allLinks);
   const counts = bucketClicks(days, allLinks);
@@ -1362,12 +1182,9 @@ function renderAnalytics() {
       : `in the last ${range} day${range === 1 ? '' : 's'}`);
 
   renderAreaChart(counts, days);
-
-  // ---- Leaderboard ----
   renderLeaderboard(allLinks);
 }
 
-/** Count clicks in the last N days. */
 function countClicksInWindow(allLinks, days) {
   const cutoff = Date.now() - days * 86400000;
   let n = 0;
@@ -1378,7 +1195,6 @@ function countClicksInWindow(allLinks, days) {
   return n;
 }
 
-/** Sparkline data for "new links per day". */
 function getRecentLinksSpark(allLinks, days) {
   const dayList = getRangeDays(days, allLinks);
   const index = new Map(dayList.map((d, i) => [d.key, i]));
@@ -1390,7 +1206,7 @@ function getRecentLinksSpark(allLinks, days) {
   return counts;
 }
 
-// ---------- Range tab listeners (register once) ----------
+// Range tab listeners (register once)
 els.rangeTabs.addEventListener('click', (e) => {
   const btn = e.target.closest('.tab');
   if (!btn) return;
@@ -1408,6 +1224,6 @@ renderLinks();
 renderAnalytics();
 
 console.log(
-  `%c🔗 LinkShortener — Phases 1-4 ready (${links.length} links in storage)`,
+  `%c🔗 LinkShortener — Phases 1-9 ready (${links.length} links in storage)`,
   'color:#4f46e5;font-weight:bold;'
 );
