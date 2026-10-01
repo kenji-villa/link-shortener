@@ -40,9 +40,7 @@ No frameworks. No build step. No backend. Just clean code that runs entirely in 
 
 ---
 
-## 🖼️ Demo
 
-> **Live demo:** _Coming soon — deploy to GitHub Pages in one click (see below)._
 
 ### Screenshots
 
@@ -50,13 +48,27 @@ No frameworks. No build step. No backend. Just clean code that runs entirely in 
 
 ![Home Page 2](screenshots/HomePage_Dark.png)
 
+![My Links](screenshots/MyLinkss.png)
+
+![Analytics](screenshots/Analytics.png)
+
+![Settings](screenshots/Settings.png)
 
 
-| Analytics | Settings |
-|:---:|:---:|
-| _Add screenshot_ | _Add screenshot_ |
+---
 
-> 💡 **Tip:** Take a few screenshots after opening the app, drop them into a `/screenshots` folder in the repo, and replace the `_Add screenshot_` placeholders with `<img src="./screenshots/shorten.png" width="400" />`.
+### 📁 Project Structure
+
+```text 
+link-shortener/
+├── index.html          # Single-page app — all views live here
+├── css/
+│   └── style.css       # Design tokens, layout, components, responsive
+├── js/
+│   └── app.js          # All logic: validation, storage, rendering, analytics
+├── README.md
+└── .gitignore
+``` 
 
 ---
 
